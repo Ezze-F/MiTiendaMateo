@@ -81,3 +81,16 @@ Si las tablas no existen en la BD, ejecutar:
 
 python manage.py migrate
 
+Numeración de apps a codificar:
+
+1) Productos
+2) Proveedores
+3) Compras
+4) Ventas
+5) Caja
+6) Billeteras virtuales
+7) Sucursales
+8) Empleados
+
+Desarrollo de la app Productos:
+25/08/2025 - Creación de urls.py, forms.py y carpeta templates.

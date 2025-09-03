@@ -9,6 +9,8 @@ class Productos(models.Model):
     fecha_elaboracion = models.DateField(db_column='Fecha_Elaboracion', blank=True, null=True)  # Field name made lowercase.
     fecha_vencimiento = models.DateField(db_column='Fecha_Vencimiento', blank=True, null=True)  # Field name made lowercase.
     cant_stock = models.IntegerField(db_column='Cant_Stock', blank=True, null=True)  # Field name made lowercase.
+    borrado_logico = models.BooleanField(default=True) # Atributo booleano para detectar si un producto fue borrado lógicamente
+    #fecha_borrado = models.DateField(db_column='Fecha_Borrado', blank=True, null=True)
 
     class Meta:
         db_table = 'Productos'

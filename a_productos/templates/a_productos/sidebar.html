@@ -1,0 +1,54 @@
+{% load static %}
+<nav class="sidebar">
+    <!-- Logo centrado -->
+    <div class="sidebar-logo">
+        <img src="{% static 'a_productos/img/logo.png' %}" alt="Logo" class="img-fluid">
+    </div>
+
+    <!-- Menú -->
+    <ul class="nav flex-column sidebar-menu">
+        <li class="nav-item">
+            <a href="#" class="nav-link {% if request.path == '/billeteras/' %}active{% endif %}">
+                Billeteras Virtuales
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link {% if request.path == '/cajas/' %}active{% endif %}">
+                Cajas
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link {% if request.path == '/empleados/' %}active{% endif %}">
+                Empleados
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{% url 'listar_prod' %}" class="nav-link {% if request.path == '/productos/' %}active{% endif %}">
+                Productos
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link {% if request.path == '/proveedores/' %}active{% endif %}">
+                Proveedores
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link {% if request.path == '/reportes/' %}active{% endif %}">
+                Reportes
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link {% if request.path == '/sucursales/' %}active{% endif %}">
+                Sucursales
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link {% if request.path == '/ventas/' %}active{% endif %}">
+                Ventas
+            </a>
+        </li>
+    </ul>
+
+    <hr>
+    <button type="button" class="btn btn-danger">Cerrar sesión</button>
+</nav>

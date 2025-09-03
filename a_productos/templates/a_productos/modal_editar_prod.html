@@ -1,0 +1,5 @@
+<form method="post" action="{% url 'modificar_prod' form.instance.pk %}">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-warning mt-3">Editar producto</button>
+</form>
