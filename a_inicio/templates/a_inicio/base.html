@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mi Tienda Mateo{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+    <div class="container">
+        {% include 'a_inicio/sidebar.html' %} {# Incluimos el sidebar aquí #}
+
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <footer class="footer">
+        <p>
+            © 2025 MiTiendaMateo. Todos los derechos reservados.
+            <a href="#">Política de Privacidad</a> | <a href="#">Términos y Condiciones</a>
+            Desarrollado por DAEG Team
+        </p>
+    </footer>
+
+    <script>
+        // Script para el menú responsive (botón de hamburguesa)
+        const menuToggle = document.querySelector('.menu-toggle');
+        const sidebar = document.querySelector('.sidebar');
+
+        if (menuToggle && sidebar) {
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('active');
+            });
+        }
+    </script>
+</body>
+</html>
