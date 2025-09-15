@@ -16,8 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('a_inicio.urls')),  # incluye todas las urls de la app a_inicio
+    path('', include('a_inicio.urls', namespace='a_inicio')),
+    path('central/', include('a_central.urls', namespace='a_central')),
 ]
+
+# En modo de desarrollo, sirve los archivos estáticos.
+# Esta es una buena práctica para asegurar que CSS y JS se carguen correctamente.
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

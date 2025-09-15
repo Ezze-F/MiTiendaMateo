@@ -1,40 +1,70 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Mi Tienda Mateo{% endblock %}</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
 </head>
-<body>
+<body class="menu-closed">
+    <div class="main-container">
+        <aside class="menu">
+            <div class="menu-logo">
+                <h1 class="header-title">MENÚ</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="{% url 'a_inicio:inicio' %}"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li class="has-submenu">
+                        <a href="#"><i class="fas fa-chart-bar"></i> Empleados <i class="fas fa-chevron-right submenu-arrow"></i></a>
+                        <ul class="submenu">
+                            <li><a href="{% url 'a_central:listar_roles' %}"><i class="fas fa-file-alt"></i> Roles</a></li>
+                            <li><a href="#"><i class="fas fa-file-alt"></i> Opción nueva</a></li>
+                        </ul>
+                    </li>
+                    <li class="has-submenu">
+                        <a href="#"><i class="fas fa-cogs"></i> Otra <i class="fas fa-chevron-right submenu-arrow"></i></a>
+                        <ul class="submenu">
+                            <li><a href="#"><i class="fas fa-user-cog"></i> Opción 1</a></li>
+                            <li><a href="#"><i class="fas fa-cog"></i> Opción 2</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
 
-    <div class="container">
-        {% include 'a_inicio/sidebar.html' %} {# Incluimos el sidebar aquí #}
-
-        <main class="main-content">
-            {% block content %}{% endblock %}
-        </main>
+        <div class="content">
+            <header>
+                <button id="menu-toggle" class="bg-transparent border-0"><i class="fas fa-bars fa-2x"></i></button>
+                <div class="header-title">
+                     <img src="{% static 'img/logo.png' %}" alt="Logo de Mi Tienda" class="d-none d-md-block header-logo">
+                    <h1 class="d-none d-md-block">Mi Tienda Mateo</h1>
+                </div>
+                <div class="flex items-center">
+                    <button class="bg-red-500 text-white mr-4 py-2 px-4 rounded-full">
+                        Cerrar Sesión
+                    </button>
+                    <i class="fa-solid fa-user fa-2xl"></i>
+                </div>
+            </header>
+            <main>
+                {% block content %}
+                {% endblock %}
+            </main>
+        </div>
     </div>
-
-    <footer class="footer">
-        <p>
-            © 2025 MiTiendaMateo. Todos los derechos reservados.
-            <a href="#">Política de Privacidad</a> | <a href="#">Términos y Condiciones</a>
-            Desarrollado por DAEG Team
-        </p>
-    </footer>
-
-    <script>
-        // Script para el menú responsive (botón de hamburguesa)
-        const menuToggle = document.querySelector('.menu-toggle');
-        const sidebar = document.querySelector('.sidebar');
-
-        if (menuToggle && sidebar) {
-            menuToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('active');
-            });
-        }
-    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'js/base.js' %}"></script>
+    
+    {% block scripts %}
+    {% endblock %}
 </body>
 </html>

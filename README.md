@@ -94,3 +94,28 @@ Numeración de apps a codificar:
 
 Desarrollo de la app Productos:
 25/08/2025 - Creación de urls.py, forms.py y carpeta templates.
+
+
+
+
+***** Restruccturación de las apps del proyecto
+
+a_central
+	Roles, Provincias, Sucursales,
+Empleados, Auditorías
+
+a_stock
+	Marcas, Proveedores, Productos, Stock_Sucursales, Proveedores_Productos
+
+a_cajas
+	Cajas, Movimientos_Cajas, Billeteras_Virtuales
+
+a_ventas
+	Ventas, Detalles_Ventas
+
+a_compras
+	Compras, Detalles_Compras
+
+***** Creación del superusuario
+
+superusuario Django: adminpp2
