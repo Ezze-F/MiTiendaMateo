@@ -1,0 +1,149 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Provincias{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Encabezado con botón Registrar Provincia -->
+    <div class="row mb-3">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Gestión de provincias</h4>
+            <button type="button" class="btn btn-primary" id="btnRegistrarProvincia" data-bs-toggle="modal" data-bs-target="#modalRegistroProvincia">
+                <i class="fas fa-plus"></i> Registrar Provincia
+            </button>
+        </div>
+    </div>
+
+    <!-- Pestañas: Activas / Eliminadas -->
+    <ul class="nav nav-tabs" id="provinciasTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="activas-tab" data-bs-toggle="tab" data-bs-target="#provinciasActivasTab" type="button" role="tab" aria-controls="provinciasActivasTab" aria-selected="true">Provincias Activas</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="eliminadas-tab" data-bs-toggle="tab" data-bs-target="#provinciasEliminadasTab" type="button" role="tab" aria-controls="provinciasEliminadasTab" aria-selected="false">Provincias Eliminadas</button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-3" id="provinciasTabsContent">
+        <!-- Provincias Activas -->
+        <div class="tab-pane fade show active" id="provinciasActivasTab" role="tabpanel" aria-labelledby="activas-tab">
+            <div class="card shadow mb-4">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="dataTableProvinciasActivas" class="table table-striped table-bordered text-center" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Provincias Eliminadas -->
+        <div class="tab-pane fade" id="provinciasEliminadasTab" role="tabpanel" aria-labelledby="eliminadas-tab">
+            <div class="card shadow mb-4">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="dataTableProvinciasEliminadas" class="table table-striped table-bordered text-center" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Fecha/Hora Borrado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Registrar Provincia -->
+<div class="modal fade" id="modalRegistroProvincia" tabindex="-1" aria-labelledby="modalRegistroProvinciaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formRegistroProvincia">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalRegistroProvinciaLabel"><i class="fas fa-plus mr-2"></i> Registrar Nueva Provincia</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="reg_nombre_provincia" class="form-label">Nombre de la Provincia <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="reg_nombre_provincia" name="nombre_provincia" required maxlength="50" placeholder="Ej: Buenos Aires">
+                        <div id="reg_error_message" class="text-danger small mt-2"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnRegistrar">Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modificar Provincia -->
+<div class="modal fade" id="modalModificarProvincia" tabindex="-1" aria-labelledby="modalModificarProvinciaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formModificarProvincia">
+                {% csrf_token %}
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="modalModificarProvinciaLabel"><i class="fas fa-edit mr-2"></i> Modificar Provincia</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="mod_id_provincia" name="id_provincia">
+                    <div class="mb-3">
+                        <label for="mod_nombre_provincia" class="form-label">Nombre de la Provincia <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="mod_nombre_provincia" name="nombre_provincia" required maxlength="50">
+                        <div id="mod_error_message" class="text-danger small mt-2"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info" id="btnModificar">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<!-- jQuery + Bootstrap 5 + DataTables -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-1.13.7/r-2.5.0/datatables.min.css"/>
+<script src="https://cdn.datatables.net/v/bs5/dt-1.13.7/r-2.5.0/datatables.min.js"></script>
+
+<script>
+    // URLs globales para AJAX
+    const listarProvinciasActivasUrl = "{% url 'a_central:provincias_activas_api' %}";
+    const listarProvinciasEliminadasUrl = "{% url 'a_central:provincias_eliminadas_api' %}";
+    const registrarProvinciaUrl = "{% url 'a_central:registrar_provincia' %}";
+    const modificarProvinciaUrl = "{% url 'a_central:modificar_provincia' provincia_id=1 %}".replace('1','0');
+    const borrarProvinciaUrl = "{% url 'a_central:borrar_provincia' provincia_id=1 %}".replace('1','0');
+    const recuperarProvinciaUrl = "{% url 'a_central:recuperar_provincia' provincia_id=1 %}".replace('1','0');
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'a_central/js/provincias.js' %}"></script>
+
+{% endblock %}

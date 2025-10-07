@@ -1,66 +1,49 @@
 from django.db import models
+# Importamos modelos desde a_central para usarlos como Foreign Keys
+from a_central.models import Proveedores, Productos, LocalesComerciales
 
-class Marcas(models.Model):
-    id_marca = models.AutoField(primary_key=True)
-    nombre_marca = models.CharField(unique=True, max_length=120)
-    borrado_logico = models.BooleanField(default=False)
 
-    class Meta:
-        db_table = 'Marcas'
-        verbose_name_plural = "Marcas"
-
-class Proveedores(models.Model):
-    cuit_proveedor = models.CharField(primary_key=True, max_length=20)
-    nombre_proveedor = models.CharField(max_length=160)
-    telefono_proveedor = models.CharField(max_length=30, blank=True, null=True)
-    email_proveedor = models.CharField(max_length=150, blank=True, null=True)
-    direccion_proveedor = models.CharField(max_length=200, blank=True, null=True)
-    habilitado_proveedor = models.BooleanField(default=True)
-    borrado_logico = models.BooleanField(default=False)
-
-    def __str__(self):
-        return self.nombre_proveedor
+class Proveedoresxloccom(models.Model):
+    id_proveedor = models.ForeignKey(Proveedores, models.DO_NOTHING, db_column='ID_Proveedor')
+    id_loc_com = models.ForeignKey(LocalesComerciales, models.DO_NOTHING, db_column='ID_Loc_Com')
+    
+    fh_ultima_visita = models.DateTimeField(db_column='FH_Ultima_Visita', blank=True, null=True)
+    borrado_pxlc = models.BooleanField(db_column='Borrado_PxLC', default=False)
+    fh_borrado_pxlc = models.DateTimeField(db_column='FH_Borrado_PxLC', blank=True, null=True)
 
     class Meta:
-        db_table = 'Proveedores'
-        verbose_name_plural = "Proveedores"
+        db_table = 'ProveedoresXLocCom'
+        unique_together = (('id_proveedor', 'id_loc_com'),)
+        verbose_name_plural = 'Proveedores por Local Comercial'
+        
 
-class Productos(models.Model):
-    id_producto = models.BigAutoField(primary_key=True)
-    id_marca = models.ForeignKey(Marcas, on_delete=models.SET_NULL, db_column='id_marca', blank=True, null=True)
-    descripcion_producto = models.CharField(max_length=200)
-    precio_unitario_venta = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    fecha_elaboracion = models.DateField(blank=True, null=True)
-    fecha_vencimiento = models.DateField(blank=True, null=True)
-    borrado_logico = models.BooleanField(default=False)
-
-    def __str__(self):
-        return self.descripcion_producto
+class Proveedoresxproductos(models.Model):
+    id_prov_prod = models.AutoField(db_column='ID_Prov_Prod', primary_key=True) 
+    id_proveedor = models.ForeignKey(Proveedores, models.DO_NOTHING, db_column='ID_Proveedor')
+    id_producto = models.ForeignKey(Productos, models.DO_NOTHING, db_column='ID_Producto')
+    costo_compra = models.DecimalField(db_column='Costo_Compra', max_digits=10, decimal_places=2, blank=True, null=True)
+    borrado_pvxpr = models.BooleanField(db_column='Borrado_PvXPr', default=False)
+    fh_borrado_pvxpr = models.DateTimeField(db_column='FH_Borrado_PvXPr', blank=True, null=True)
 
     class Meta:
-        db_table = 'Productos'
-        verbose_name_plural = "Productos"
+        db_table = 'ProveedoresXProductos'
+        verbose_name_plural = 'Proveedores por Productos'
+        unique_together = (('id_proveedor', 'id_producto'),)
+        
 
-class ProveedoresProductos(models.Model):
-    id_proveedor_producto = models.BigAutoField(primary_key=True)
-    cuit_proveedor = models.ForeignKey(Proveedores, on_delete=models.CASCADE, db_column='cuit_proveedor')
-    id_producto = models.ForeignKey(Productos, on_delete=models.CASCADE, db_column='id_producto')
-    precio_proveedor = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    borrado_logico = models.BooleanField(default=False)
-
-    class Meta:
-        db_table = 'Proveedores_Productos'
-        unique_together = (('cuit_proveedor', 'id_producto'),)
-        verbose_name_plural = "Proveedores de Productos"
-
-class StocksSucursales(models.Model):
-    id_stock = models.BigAutoField(primary_key=True)
-    id_producto = models.ForeignKey(Productos, on_delete=models.CASCADE, db_column='id_producto')
-    id_sucursal = models.ForeignKey('a_central.Sucursales', on_delete=models.CASCADE, db_column='id_sucursal')
-    cantidad_stock = models.BigIntegerField(default=0)
-    borrado_logico = models.BooleanField(default=False)
+class Stock(models.Model):
+    # Se añade PK para seguir la convención de otras tablas
+    id_stock_sucursal = models.AutoField(db_column='ID_Stock_Sucursal', primary_key=True)
+    id_producto = models.ForeignKey(Productos, models.DO_NOTHING, db_column='ID_Producto')
+    id_loc_com = models.ForeignKey(LocalesComerciales, models.DO_NOTHING, db_column='ID_Loc_Com')
+    
+    stock_pxlc = models.IntegerField(db_column='Stock_PxLC')
+    stock_min_pxlc = models.IntegerField(db_column='Stock_Min_PxLC')
+    
+    borrado_pxlc = models.BooleanField(db_column='Borrado_PxLC', default=False)
+    fh_borrado_pxlc = models.DateTimeField(db_column='FH_Borrado_PxLC', blank=True, null=True)
 
     class Meta:
-        db_table = 'Stocks_Sucursales'
-        unique_together = (('id_producto', 'id_sucursal'),)
-        verbose_name_plural = "Stocks de Sucursales"
+        db_table = 'Stock'
+        verbose_name_plural = 'Stock por Local Comercial'
+        unique_together = (('id_producto', 'id_loc_com'),)

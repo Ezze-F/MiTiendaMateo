@@ -1,0 +1,184 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Marcas{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Gestión de Marcas</h1>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrarMarcaModal">
+                <i class="fas fa-plus-circle me-2"></i>Registrar Marca
+            </button>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs" id="marcasTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#marcasDisponiblesTab" type="button" role="tab" aria-controls="marcasDisponiblesTab" aria-selected="true">Marcas Disponibles</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="eliminadas-tab" data-bs-toggle="tab" data-bs-target="#marcasEliminadasTab" type="button" role="tab" aria-controls="marcasEliminadasTab" aria-selected="false">Marcas Eliminadas</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="marcasTabsContent">
+        <div class="tab-pane fade show active" id="marcasDisponiblesTab" role="tabpanel" aria-labelledby="disponibles-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableMarcasDisponibles" class="table table-striped table-bordered text-center" width="100%" cellspacing="0">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center">ID</th>
+                                            <th class="text-center">Nombre</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="marcasEliminadasTab" role="tabpanel" aria-labelledby="eliminadas-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableMarcasEliminadas" class="table table-striped table-bordered text-center" width="100%" cellspacing="0">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center">ID</th>
+                                            <th class="text-center">Nombre</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="registrarMarcaModal" tabindex="-1" aria-labelledby="registrarMarcaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="registrarMarcaForm" method="post" action="{% url 'a_stock:registrar_marca' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="registrarMarcaModalLabel">Registrar Nueva Marca</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nombre_marca" class="form-label">Nombre de la Marca:</label>
+                        <input type="text" class="form-control" id="nombre_marca" name="nombre_marca" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Marca</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modificarMarcaModal" tabindex="-1" aria-labelledby="modificarMarcaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="modificarMarcaForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="id_marca" id="modificar_id_marca">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modificarMarcaModalLabel">Modificar Marca</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modificar_nombre_marca" class="form-label">Nombre de la Marca:</label>
+                        <input type="text" class="form-control" id="modificar_nombre_marca" name="nombre_marca" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="eliminarMarcaModal" tabindex="-1" aria-labelledby="eliminarMarcaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eliminarMarcaModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas eliminar esta marca?
+                <input type="hidden" id="eliminar_id_marca">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmarEliminarBtn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="restaurarMarcaModal" tabindex="-1" aria-labelledby="restaurarMarcaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="restaurarMarcaModalLabel">Confirmar Restauración</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas restaurar esta marca?
+                <input type="hidden" id="restaurar_id_marca">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="confirmarRestaurarBtn">Restaurar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    window.AppUrls = {
+        modificarMarca: "{% url 'a_stock:modificar_marca' marca_id=0 %}".replace('/0/', '/'),
+        borrarMarca: "{% url 'a_stock:borrar_marca' marca_id=0 %}".replace('/0/', '/'),
+        recuperarMarca: "{% url 'a_stock:recuperar_marca' marca_id=0 %}".replace('/0/', '/'),
+    };
+</script>
+
+<script src="{% static 'a_stock/js/marcas.js' %}"></script>
+
+{% endblock %}

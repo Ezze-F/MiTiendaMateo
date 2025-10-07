@@ -1,0 +1,344 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Empleados{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-4" style="text-align: center;">Gestión de Empleados</h4>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrarEmpleadoModal">
+                Registrar empleado
+            </button>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs" id="empleadosTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#empleadosDisponiblesTab" type="button" role="tab" aria-controls="empleadosDisponiblesTab" aria-selected="true">Empleados disponibles</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="eliminados-tab" data-bs-toggle="tab" data-bs-target="#empleadosEliminadosTab" type="button" role="tab" aria-controls="empleadosEliminadosTab" aria-selected="false">Empleados eliminados</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="empleadosTabsContent">
+        <!-- Empleados Disponibles -->
+        <div class="tab-pane fade show active" id="empleadosDisponiblesTab" role="tabpanel" aria-labelledby="disponibles-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableEmpleadosDisponibles" class="table table-striped table-bordered text-center" width="100%" cellspacing="0">
+                                    <thead>
+                                        <tr>
+                                            <!-- 🔴 ID eliminado visualmente -->
+                                            <th class="text-center d-none">ID</th>
+                                            <th class="text-center">DNI</th>
+                                            <th class="text-center">Apellido</th>
+                                            <th class="text-center">Nombre</th>
+                                            <th class="text-center">Email</th>
+                                            <th class="text-center">Teléfono</th>
+                                            <th class="text-center">Rol</th>
+                                            <th class="text-center">Fecha Alta</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empleados Eliminados -->
+        <div class="tab-pane fade" id="empleadosEliminadosTab" role="tabpanel" aria-labelledby="eliminadas-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableEmpleadosEliminados" class="table table-striped table-bordered text-center" width="100%" cellspacing="0">
+                                    <thead>
+                                        <tr>
+                                            <!-- 🔴 ID eliminado visualmente -->
+                                            <th class="text-center d-none">ID</th>
+                                            <th class="text-center">DNI</th>
+                                            <th class="text-center">Apellido</th>
+                                            <th class="text-center">Nombre</th>
+                                            <th class="text-center">Fecha Baja</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal de Registro de Empleado #}
+<div class="modal fade" id="registrarEmpleadoModal" tabindex="-1" aria-labelledby="registrarEmpleadoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="registrarEmpleadoForm" method="post" action="{% url 'a_central:registrar_empleado' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="registrarEmpleadoModalLabel">Registrar Nuevo Empleado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- ALERTA DE ERRORES GENERALES DE VALIDACIÓN -->
+                    <div id="form-error-alerts" class="alert alert-danger d-none" role="alert">
+                        <strong>¡Error de validación!</strong> Por favor, revisa los campos.
+                        <ul id="error-list"></ul>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="dni_emp" class="form-label">DNI:</label>
+                            <input type="number" class="form-control" id="dni_emp" name="dni_emp" required>
+                            <div class="invalid-feedback" id="error-dni_emp"></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="apellido_emp" class="form-label">Apellido:</label>
+                            <input type="text" class="form-control" id="apellido_emp" name="apellido_emp" required>
+                            <div class="invalid-feedback" id="error-apellido_emp"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre_emp" class="form-label">Nombre:</label>
+                            <input type="text" class="form-control" id="nombre_emp" name="nombre_emp" required>
+                            <div class="invalid-feedback" id="error-nombre_emp"></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="email_emp" class="form-label">Email:</label>
+                            <input type="email" class="form-control" id="email_emp" name="email_emp" required>
+                            <div class="invalid-feedback" id="error-email_emp"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="telefono_emp" class="form-label">Teléfono:</label>
+                            <input type="text" class="form-control" id="telefono_emp" name="telefono_emp">
+                            <div class="invalid-feedback" id="error-telefono_emp"></div>
+                        </div>
+                        {# CAMPO NUEVO: USUARIO EMP #}
+                        <div class="col-md-6 mb-3">
+                            <label for="usuario_emp" class="form-label">Usuario:</label>
+                            <input type="text" class="form-control" id="usuario_emp" name="usuario_emp">
+                            <div class="invalid-feedback" id="error-usuario_emp"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="domicilio_emp" class="form-label">Domicilio:</label>
+                        <input type="text" class="form-control" id="domicilio_emp" name="domicilio_emp">
+                        <div class="invalid-feedback" id="error-domicilio_emp"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="contrasena_emp" class="form-label">Contraseña Inicial:</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="contrasena_emp" name="contrasena_emp" required>
+                                <button class="btn btn-outline-secondary" type="button" id="togglePasswordEmp">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="invalid-feedback" id="error-contrasena_emp"></div>
+                        </div>
+                        {# CAMPO NUEVO: CONFIRMACIÓN DE CONTRASEÑA #}
+                        <div class="col-md-6 mb-3">
+                            <label for="contrasena_confirmacion" class="form-label">Confirmar Contraseña:</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="contrasena_confirmacion" name="contrasena_confirmacion" required>
+                                <button class="btn btn-outline-secondary" type="button" id="togglePasswordConfirmacion">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="invalid-feedback" id="error-contrasena_confirmacion"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        {# CAMPO DE ROL (GRUPO) - USANDO EL CONTEXTO ENVIADO POR LA VISTA #}
+                        <div class="col-md-6 mb-3">
+                            <label for="id_rol" class="form-label">Rol:</label>
+                            <select class="form-select" id="id_rol" name="id_rol" required>
+                                <option value="" disabled selected>Seleccione un rol</option>
+                                {% for rol in roles %}
+                                <option value="{{ rol.id }}">{{ rol.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback" id="error-id_rol"></div>
+                        </div>
+                        {# Eliminado: Fecha de Alta, ya que se asigna automáticamente en la vista #}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Empleado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Modal de Modificación de Empleado #}
+<div class="modal fade" id="modificarEmpleadoModal" tabindex="-1" aria-labelledby="modificarEmpleadoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="modificarEmpleadoForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="id_empleado" id="modificar_id_empleado">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modificarEmpleadoModalLabel">Modificar Empleado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- ALERTA DE ERRORES DE MODIFICACIÓN -->
+                    <div id="modificar-error-alert" class="alert alert-danger d-none" role="alert"></div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modificar_dni_emp" class="form-label">DNI:</label>
+                            <input type="number" class="form-control" id="modificar_dni_emp" name="dni_emp" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="modificar_apellido_emp" class="form-label">Apellido:</label>
+                            <input type="text" class="form-control" id="modificar_apellido_emp" name="apellido_emp" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modificar_nombre_emp" class="form-label">Nombre:</label>
+                            <input type="text" class="form-control" id="modificar_nombre_emp" name="nombre_emp" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="modificar_email_emp" class="form-label">Email:</label>
+                            <input type="email" class="form-control" id="modificar_email_emp" name="email_emp" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modificar_telefono_emp" class="form-label">Teléfono:</label>
+                            <input type="text" class="form-control" id="modificar_telefono_emp" name="telefono_emp">
+                        </div>
+                        {# AÑADIDO: CAMPO USUARIO EMP en Modal de Modificación #}
+                        <div class="col-md-6 mb-3">
+                            <label for="modificar_usuario_emp" class="form-label">Usuario:</label>
+                            <input type="text" class="form-control" id="modificar_usuario_emp" name="usuario_emp">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modificar_domicilio_emp" class="form-label">Domicilio:</label>
+                        <input type="text" class="form-control" id="modificar_domicilio_emp" name="domicilio_emp">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modificar_fecha_alta_emp" class="form-label">Fecha de Alta:</label>
+                            <input type="date" class="form-control" id="modificar_fecha_alta_emp" name="fecha_alta_emp" required disabled>
+                            <small class="form-text text-muted">La fecha de alta no se puede modificar.</small>
+                        </div>
+                         <div class="col-md-6 mb-3">
+                            <label for="modificar_id_rol" class="form-label">Rol/Grupo:</label>
+                            {# En el proceso de modificación, la vista debe pasar la lista de roles #}
+                            <select class="form-select" id="modificar_id_rol" name="id_rol" required>
+                                {# Las opciones se cargarán dinámicamente con JavaScript/AJAX #}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Modal de Eliminación de Empleado #}
+<div class="modal fade" id="eliminarEmpleadoModal" tabindex="-1" aria-labelledby="eliminarEmpleadoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eliminarEmpleadoModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas **eliminar** (dar de baja) al empleado con ID: <strong id="eliminar_empleado_id_display"></strong>?
+                <input type="hidden" id="eliminar_id_empleado">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmarEliminarBtn">Confirmar Baja</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal de Restauración de Empleado #}
+<div class="modal fade" id="restaurarEmpleadoModal" tabindex="-1" aria-labelledby="restaurarEmpleadoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="restaurarEmpleadoModalLabel">Confirmar Restauración</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas **restaurar** (dar de alta) al empleado con ID: <strong id="restaurar_empleado_id_display"></strong>?
+                <input type="hidden" id="restaurar_id_empleado">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="confirmarRestaurarBtn">Restaurar Alta</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    window.AppUrls = {
+        modificarEmpleado: "{% url 'a_central:modificar_empleado' empleado_id=0 %}".replace('/0/', '/'),
+        borrarEmpleado: "{% url 'a_central:borrar_empleado' empleado_id=0 %}".replace('/0/', '/'),
+        recuperarEmpleado: "{% url 'a_central:recuperar_empleado' empleado_id=0 %}".replace('/0/', '/'),
+    };
+    document.getElementById('togglePasswordEmp').addEventListener('click', function () {
+        const input = document.getElementById('contrasena_emp');
+        const icon = this.querySelector('i');
+        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+        input.setAttribute('type', type);
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+    // Mostrar / Ocultar confirmación
+    document.getElementById('togglePasswordConfirmacion').addEventListener('click', function () {
+        const input = document.getElementById('contrasena_confirmacion');
+        const icon = this.querySelector('i');
+        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+        input.setAttribute('type', type);
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+</script>
+
+<!-- Es importante incluir SweetAlert2 para las notificaciones amigables -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
+<script src="{% static 'a_central/js/empleados.js' %}"></script>
+
+{% endblock %}

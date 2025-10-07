@@ -3,9 +3,9 @@
 --secondary-color: #388E3C;
 --background-color: #f0f2f5;
 --text-color: #333;
---menu-bg: #2d3748;
---menu-item-hover: #4a5568;
---submenu-bg: #1a202c;
+--menu-bg: #000000;
+--menu-item-hover: #68a9df;
+--submenu-bg: #000000;
 --border-color: #e2e8f0;
 }
 
@@ -59,8 +59,8 @@ overflow-y: auto;
 
 
 header {
-background-color: #fff;
-color: var(--menu-bg);
+background-color: #4c9fb7;
+color: white;
 padding: 1rem 2rem;
 display: flex;
 justify-content: space-between;
@@ -242,5 +242,6 @@ body.menu-open .menu {
 
 /* Estilos para el logo en el encabezado */
 .header-logo {
-    height: 40px; /* Ajusta este valor al tamaño que mejor te parezca */
+    height: 40px; 
 }
+

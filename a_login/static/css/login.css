@@ -1,0 +1,124 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+
+.login-container {
+    background-color: #fff;
+    padding: 2em;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.logo-container {
+    margin-bottom: 20px;
+}
+
+.brand-logo {
+    max-width: 150px;
+    height: auto;
+}
+
+h2 {
+    color: #333;
+    margin-bottom: 1em;
+}
+
+.input-group {
+    margin-bottom: 1.5em;
+    text-align: left;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5em;
+    color: #555;
+    font-weight: bold;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+.login-button {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.login-button:hover {
+    background-color: #0056b3;
+}
+
+
+.forgot-password {
+    display: block;
+    margin-top: 1em;
+    color: #007bff;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.3s ease;
+}
+
+.forgot-password:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+/* Estilo base para todos los mensajes */
+.messages-list {
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+.message-item {
+    list-style: none;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    font-size: 0.9em;
+}
+
+/* Estilos específicos basados en los tags de Django */
+
+/* Mensaje de ERROR (message.tags contiene 'error') */
+.error {
+    background-color: #f8d7da; /* Rojo muy claro */
+    color: #721c24; /* Rojo oscuro */
+    border: 1px solid #f5c6cb;
+}
+
+/* Mensaje de ÉXITO (message.tags contiene 'success') */
+.success {
+    background-color: #d4edda; /* Verde muy claro */
+    color: #155724; /* Verde oscuro */
+    border: 1px solid #c3e6cb;
+}
+
+/* Mensajes por defecto (ej: info, debug, warning) */
+.info, .debug, .warning {
+    background-color: #e2e3e5; /* Gris claro */
+    color: #383d41; /* Gris oscuro */
+    border: 1px solid #d6d8db;
+}
