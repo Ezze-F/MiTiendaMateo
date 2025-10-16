@@ -1,35 +1,41 @@
-// Lógica para desplegar el menú de submenús
+console.log('Base.js cargado y ejecutado correctamente.');
 
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // Seleccionamos los enlaces con la clase 'submenu-toggle'
+    const submenuToggles = document.querySelectorAll('.submenu-toggle');
+    // Seleccionamos TODOS los elementos LI padres del submenú
+    const allSubmenuParents = document.querySelectorAll('.has-submenu');
 
-    // Selecciona todos los enlaces (<a>) que están dentro de un elemento con la clase 'has-submenu'
-    const hasSubmenuLinks = document.querySelectorAll('.has-submenu > a');
+    submenuToggles.forEach(toggle => {
+        toggle.addEventListener('click', function (e) {
+            e.preventDefault(); // Evita comportamiento predeterminado (href="#")
 
-    // Itera sobre cada uno de los enlaces
-    hasSubmenuLinks.forEach(link => {
-        // Agrega un 'event listener' para el evento 'click'
-        link.addEventListener('click', (event) => {
-            // Evita la acción por defecto del enlace si no tiene una URL definida
-            if (link.getAttribute('href') === '#') {
-                event.preventDefault();
+            const parentLi = this.closest('.has-submenu');
+            const isOpen = parentLi.classList.contains('open');
+
+            // 1. Cerrar todos los submenús (elimina la clase 'open' de todos)
+            allSubmenuParents.forEach(li => li.classList.remove('open'));
+
+            // 2. Si el submenú NO estaba abierto, abrir el actual
+            if (!isOpen) {
+                parentLi.classList.add('open');
             }
-
-            // Alterna la clase 'open' en el elemento padre (<li>) para desplegar el submenú
-            const parentLi = link.closest('.has-submenu');
-            parentLi.classList.toggle('open');
         });
     });
 
-    // Lógica para el menú responsive de dispositivos móviles
-    // Selecciona el botón del menú por su ID
+    // Menú móvil (hamburguesa)
     const menuToggle = document.getElementById('menu-toggle');
-    // Selecciona el cuerpo del documento
     const body = document.body;
 
-    // Escucha el evento 'click' en el botón de hamburguesa
-    menuToggle.addEventListener('click', () => {
-        // Alterna la clase 'menu-open' en el cuerpo del documento
-        body.classList.toggle('menu-open');
-    });
+    if (menuToggle) {
+        menuToggle.addEventListener('click', () => {
+            body.classList.toggle('menu-open');
 
+            // Cerrar submenús al colapsar el menú móvil
+            if (!body.classList.contains('menu-open')) {
+                allSubmenuParents.forEach(li => li.classList.remove('open'));
+            }
+        });
+    }
 });

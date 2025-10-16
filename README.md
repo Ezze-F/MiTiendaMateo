@@ -382,3 +382,34 @@ Can change cajas, Can view cajas
 Can add arqueos caja, Can change arqueos caja, Can view arqueos caja
 Can view producto
 Can view stock
+
+*******************************
+***** Creación de CRUD's
+*******************************
+
+Empleados (casi listo)
+Provincias (Listo)
+Marcas (Listo)
+Proveedores (casi listo)
+LocalesComerciales (casi listo)
+Empleadosxloccom
+Productos (casi listo)
+BilleterasVirtuales (casi listo)
+Auditorias
+
+Cajas (casi listo)
+ArqueosCaja
+PagosCompras
+PagosVentas
+MovimientosFinancieros
+
+PedidosProveedor
+DetallePedidosProveedor
+Compras
+DetallesCompras
+IncidenciasCompras
+
+Stock
+
+Ventas
+DetallesVentas

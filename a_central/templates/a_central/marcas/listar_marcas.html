@@ -3,29 +3,31 @@
 
 {% block title %}Gestión de Marcas{% endblock %}
 
-{% block content %}
+{% block styles %}
+{% endblock %}
 
+{% block content %}
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
-            <h1 class="mb-4">Gestión de Marcas</h1>
+            <h4 class="mb-4 text-center">Gestión de marcas</h4>
         </div>
     </div>
 
     <div class="row mb-3">
         <div class="col-12">
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrarMarcaModal">
-                <i class="fas fa-plus-circle me-2"></i>Registrar Marca
+                Registrar marca
             </button>
         </div>
     </div>
 
     <ul class="nav nav-tabs" id="marcasTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#marcasDisponiblesTab" type="button" role="tab" aria-controls="marcasDisponiblesTab" aria-selected="true">Marcas Disponibles</button>
+            <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#marcasDisponiblesTab" type="button" role="tab" aria-controls="marcasDisponiblesTab" aria-selected="true">Marcas disponibles</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="eliminadas-tab" data-bs-toggle="tab" data-bs-target="#marcasEliminadasTab" type="button" role="tab" aria-controls="marcasEliminadasTab" aria-selected="false">Marcas Eliminadas</button>
+            <button class="nav-link" id="eliminadas-tab" data-bs-toggle="tab" data-bs-target="#marcasEliminadasTab" type="button" role="tab" aria-controls="marcasEliminadasTab" aria-selected="false">Marcas eliminadas</button>
         </li>
     </ul>
 
@@ -39,13 +41,12 @@
                                 <table id="dataTableMarcasDisponibles" class="table table-striped table-bordered text-center" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
-                                            <th class="text-center">ID</th>
+                                            <th class="d-none">ID</th>
                                             <th class="text-center">Nombre</th>
                                             <th class="text-center">Acciones</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                    </tbody>
+                                    <tbody></tbody>
                                 </table>
                             </div>
                         </div>
@@ -63,13 +64,13 @@
                                 <table id="dataTableMarcasEliminadas" class="table table-striped table-bordered text-center" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
-                                            <th class="text-center">ID</th>
+                                            <th class="d-none">ID</th>
                                             <th class="text-center">Nombre</th>
+                                            <th class="text-center">Fecha baja</th>
                                             <th class="text-center">Acciones</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                    </tbody>
+                                    <tbody></tbody>
                                 </table>
                             </div>
                         </div>
@@ -80,89 +81,59 @@
     </div>
 </div>
 
+{# Modal de Registro de Marca #}
 <div class="modal fade" id="registrarMarcaModal" tabindex="-1" aria-labelledby="registrarMarcaModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form id="registrarMarcaForm" method="post" action="{% url 'a_stock:registrar_marca' %}">
+            <form id="registrarMarcaForm" method="post" action="{% url 'a_central:registrar_marca' %}" novalidate>
                 {% csrf_token %}
                 <div class="modal-header">
-                    <h5 class="modal-title" id="registrarMarcaModalLabel">Registrar Nueva Marca</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title" id="registrarMarcaModalLabel">Registrar nueva marca</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
+                    <div id="form-error-alerts" class="alert alert-danger d-none" role="alert">
+                        <strong>¡Error de validación!</strong> Por favor, revisa los campos.
+                        <!--<ul id="error-list"></ul>-->
+                    </div>
                     <div class="mb-3">
-                        <label for="nombre_marca" class="form-label">Nombre de la Marca:</label>
+                        <label for="nombre_marca" class="form-label">Nombre de la marca:</label>
                         <input type="text" class="form-control" id="nombre_marca" name="nombre_marca" required>
+                        <div class="invalid-feedback" id="error-nombre_marca"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="submit" class="btn btn-primary">Guardar Marca</button>
+                    <button type="submit" class="btn btn-primary">Guardar marca</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+{# Modal de Modificación de Marca #}
 <div class="modal fade" id="modificarMarcaModal" tabindex="-1" aria-labelledby="modificarMarcaModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form id="modificarMarcaForm" method="post">
+            <form id="modificarMarcaForm" method="post" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="id_marca" id="modificar_id_marca">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="modificarMarcaModalLabel">Modificar Marca</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title" id="modificarMarcaModalLabel">Modificar marca</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
+                    <div id="modificar-error-alert" class="alert alert-danger d-none" role="alert"></div>
                     <div class="mb-3">
-                        <label for="modificar_nombre_marca" class="form-label">Nombre de la Marca:</label>
+                        <label for="modificar_nombre_marca" class="form-label">Nombre de la marca:</label>
                         <input type="text" class="form-control" id="modificar_nombre_marca" name="nombre_marca" required>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="eliminarMarcaModal" tabindex="-1" aria-labelledby="eliminarMarcaModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="eliminarMarcaModalLabel">Confirmar Eliminación</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                ¿Estás seguro de que deseas eliminar esta marca?
-                <input type="hidden" id="eliminar_id_marca">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="confirmarEliminarBtn">Confirmar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="restaurarMarcaModal" tabindex="-1" aria-labelledby="restaurarMarcaModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="restaurarMarcaModalLabel">Confirmar Restauración</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                ¿Estás seguro de que deseas restaurar esta marca?
-                <input type="hidden" id="restaurar_id_marca">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" id="confirmarRestaurarBtn">Restaurar</button>
-            </div>
         </div>
     </div>
 </div>
@@ -170,15 +141,16 @@
 {% endblock %}
 
 {% block scripts %}
+    <script type="text/javascript">
+        window.AppUrls = {
+            listarMarcasActivas: "{% url 'a_central:marcas_disponibles_api' %}",
+            listarMarcasEliminadas: "{% url 'a_central:marcas_eliminadas_api' %}",
+            modificarMarca: "{% url 'a_central:modificar_marca' marca_id=0 %}".replace('/0/', '/'),
+            borrarMarca: "{% url 'a_central:borrar_marca' marca_id=0 %}".replace('/0/', '/'),
+            recuperarMarca: "{% url 'a_central:recuperar_marca' marca_id=0 %}".replace('/0/', '/'),
+        };
+        console.log("✅ AppUrls definidas correctamente:", window.AppUrls);
+    </script>
 
-<script>
-    window.AppUrls = {
-        modificarMarca: "{% url 'a_stock:modificar_marca' marca_id=0 %}".replace('/0/', '/'),
-        borrarMarca: "{% url 'a_stock:borrar_marca' marca_id=0 %}".replace('/0/', '/'),
-        recuperarMarca: "{% url 'a_stock:recuperar_marca' marca_id=0 %}".replace('/0/', '/'),
-    };
-</script>
-
-<script src="{% static 'a_stock/js/marcas.js' %}"></script>
-
+    <script src="{% static 'a_central/js/marcas.js' %}?v={{ now|date:'U' }}"></script>
 {% endblock %}

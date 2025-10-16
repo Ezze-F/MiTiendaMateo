@@ -12,7 +12,7 @@
             <div class="logo-container">
                 <img src="{% static 'img/logo.png' %}" alt="Logo" class="brand-logo">
             </div>
-            <h2>Acceso al Sistema</h2>
+            <h2>Acceso al sistema</h2>
 
             {% if messages %}
                 <ul class="messages-list">
@@ -37,7 +37,12 @@
 
                 <div class="input-group">
                     <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
-                    {{ form.password }}
+                    
+                    <div class="password-toggle-container">
+                        {{ form.password }}
+                        <span class="password-toggle-icon" id="togglePassword">👁️</span>
+                    </div>
+                    
                     {% if form.password.errors %}
                         <p class="error-text">{{ form.password.errors }}</p>
                     {% endif %}
@@ -53,5 +58,37 @@
             <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1. Obtener el input de la contraseña
+            const passwordInput = document.getElementById('{{ form.password.id_for_label }}'); 
+            
+            // 2. Obtener el ícono/botón
+            const toggleIcon = document.getElementById('togglePassword');
+
+            // 3. Verificar que ambos elementos existan
+            if (passwordInput && toggleIcon) {
+                // 4. Agregar un 'escuchador' de evento (listener) al ícono
+                toggleIcon.addEventListener('click', function () {
+                    // Determinar el tipo actual del campo
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    
+                    // Cambiar el tipo del campo
+                    passwordInput.setAttribute('type', type);
+                    
+                    // Cambiar el ícono (opcional, para feedback visual)
+                    if (type === 'text') {
+                        this.textContent = '🔒'; // Ocultar
+                        this.setAttribute('aria-label', 'Ocultar contraseña');
+                    } else {
+                        this.textContent = '👁️'; // Mostrar
+                        this.setAttribute('aria-label', 'Mostrar contraseña');
+                    }
+                });
+            }
+        });
+    </script>
+    
 </body>
 </html>

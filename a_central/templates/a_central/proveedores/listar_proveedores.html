@@ -1,0 +1,200 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Proveedores{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-4 text-center">Gestión de proveedores</h4>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrarProveedorModal">
+                Registrar proveedor
+            </button>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs" id="proveedoresTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#proveedoresDisponiblesTab" type="button" role="tab" aria-controls="proveedoresDisponiblesTab" aria-selected="true">Proveedores disponibles</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="eliminados-tab" data-bs-toggle="tab" data-bs-target="#proveedoresEliminadosTab" type="button" role="tab" aria-controls="proveedoresEliminadosTab" aria-selected="false">Proveedores eliminados</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="proveedoresTabsContent">
+        <!-- TAB DISPONIBLES -->
+        <div class="tab-pane fade show active" id="proveedoresDisponiblesTab" role="tabpanel" aria-labelledby="disponibles-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableProveedoresDisponibles" class="table table-striped table-bordered text-center" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th class="d-none">ID</th>
+                                            <th class="text-center">CUIT</th>
+                                            <th class="text-center">Nombre</th>
+                                            <th class="text-center">Email</th>
+                                            <th class="text-center">Teléfono</th>
+                                            <th class="text-center">Dirección</th>
+                                            <th class="text-center">Fecha Alta</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB ELIMINADOS -->
+        <div class="tab-pane fade" id="proveedoresEliminadosTab" role="tabpanel" aria-labelledby="eliminadas-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableProveedoresEliminados" class="table table-striped table-bordered text-center" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th class="d-none">ID</th>
+                                            <th class="text-center">CUIT</th>
+                                            <th class="text-center">Nombre</th>
+                                            <th class="text-center">Fecha Baja</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL: Registrar Proveedor -->
+<div class="modal fade" id="registrarProveedorModal" tabindex="-1" aria-labelledby="registrarProveedorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="registrarProveedorForm" method="post" action="{% url 'a_central:registrar_proveedor' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar nuevo proveedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="form-error-alerts" class="alert alert-danger d-none" role="alert">
+                        <strong>¡Error!</strong> Revisa los campos ingresados.
+                    </div>
+                    <div class="mb-3">
+                        <label for="cuit_prov" class="form-label">CUIT:</label>
+                        <input type="text" class="form-control" id="cuit_prov" name="cuit_prov" required>
+                        <div class="invalid-feedback" id="error-cuit_prov"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nombre_prov" class="form-label">Nombre:</label>
+                        <input type="text" class="form-control" id="nombre_prov" name="nombre_prov" required>
+                        <div class="invalid-feedback" id="error-nombre_prov"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email_prov" class="form-label">Email:</label>
+                        <input type="email" class="form-control" id="email_prov" name="email_prov" required>
+                        <div class="invalid-feedback" id="error-email_prov"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="telefono_prov" class="form-label">Teléfono:</label>
+                        <input type="text" class="form-control" id="telefono_prov" name="telefono_prov">
+                        <div class="invalid-feedback" id="error-telefono_prov"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="direccion_prov" class="form-label">Dirección:</label>
+                        <input type="text" class="form-control" id="direccion_prov" name="direccion_prov">
+                        <div class="invalid-feedback" id="error-direccion_prov"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar proveedor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Modificar Proveedor -->
+<div class="modal fade" id="modificarProveedorModal" tabindex="-1" aria-labelledby="modificarProveedorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="modificarProveedorForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" id="modificar_id_proveedor" name="id_proveedor">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modificar proveedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modificar-error-alert" class="alert alert-danger d-none" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="modificar_cuit_prov" class="form-label">CUIT:</label>
+                        <input type="text" class="form-control" id="modificar_cuit_prov" name="cuit_prov" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modificar_nombre_prov" class="form-label">Nombre:</label>
+                        <input type="text" class="form-control" id="modificar_nombre_prov" name="nombre_prov" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modificar_email_prov" class="form-label">Email:</label>
+                        <input type="email" class="form-control" id="modificar_email_prov" name="email_prov" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modificar_telefono_prov" class="form-label">Teléfono:</label>
+                        <input type="text" class="form-control" id="modificar_telefono_prov" name="telefono_prov">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modificar_direccion_prov" class="form-label">Dirección:</label>
+                        <input type="text" class="form-control" id="modificar_direccion_prov" name="direccion_prov">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modificar_fecha_alta_prov" class="form-label">Fecha Alta:</label>
+                        <input type="date" class="form-control" id="modificar_fecha_alta_prov" name="fecha_alta_prov" disabled>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.AppUrls = {
+    modificarProveedor: "{% url 'a_central:modificar_proveedor' proveedor_id=0 %}".replace('/0/', '/'),
+    borrarProveedor: "{% url 'a_central:borrar_proveedor' proveedor_id=0 %}".replace('/0/', '/'),
+    recuperarProveedor: "{% url 'a_central:recuperar_proveedor' proveedor_id=0 %}".replace('/0/', '/'),
+};
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'a_central/js/proveedores.js' %}"></script>
+{% endblock %}

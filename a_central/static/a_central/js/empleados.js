@@ -9,14 +9,16 @@ $(document).ready(function() {
 
     // ============================================================
     // 1. DataTable: Empleados Disponibles
+    // **ASUMIMOS que la vista proporciona el campo 'usuario_emp' para la edición.**
     // ============================================================
     dataTableDisponibles = $('#dataTableEmpleadosDisponibles').DataTable({
         "ajax": {
-            "url": "/central/empleados/disponibles/",
+            // URL de la API: /central/empleados/disponibles/
+            "url": window.location.pathname.replace('empleados/', 'empleados/disponibles/'), 
             "dataSrc": "data"
         },
         "columns": [
-            { "data": "id_empleado", "visible": false },  // 🔴 ID oculto
+            { "data": "id_empleado", "visible": false },
             { "data": "dni_emp" },
             { "data": "apellido_emp" },
             { "data": "nombre_emp" },
@@ -33,7 +35,7 @@ $(document).ready(function() {
                         <div class="d-flex justify-content-center">
                             <button class="btn btn-info btn-sm me-2 btn-editar"
                                 data-id="${id}" title="Editar"
-                                data-nombre="${nombre}">
+                                data-rol-actual="${row.rol_emp}">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-danger btn-sm btn-borrar"
@@ -57,11 +59,12 @@ $(document).ready(function() {
     // ============================================================
     dataTableEliminados = $('#dataTableEmpleadosEliminados').DataTable({
         "ajax": {
-            "url": "/central/empleados/eliminados/",
+            // URL de la API: /central/empleados/eliminados/
+            "url": window.location.pathname.replace('empleados/', 'empleados/eliminados/'),
             "dataSrc": "data"
         },
         "columns": [
-            { "data": "id_empleado", "visible": false },  // 🔴 ID oculto
+            { "data": "id_empleado", "visible": false },
             { "data": "dni_emp" },
             { "data": "apellido_emp" },
             { "data": "nombre_emp" },
@@ -96,11 +99,15 @@ $(document).ready(function() {
     });
 
     // ============================================================
-    // 3. Registro, Modificación, Baja y Restauración (igual que antes)
+    // 3. Registro de Empleado (Corregido el manejo de errores)
     // ============================================================
     $('#registrarEmpleadoForm').on('submit', function(e) {
         e.preventDefault();
         const form = $(this);
+        // Limpiar errores previos
+        form.find('.form-control').removeClass('is-invalid');
+        $('#form-error-alerts').addClass('d-none');
+
         $.ajax({
             url: form.attr('action'),
             method: 'POST',
@@ -113,18 +120,35 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 const r = xhr.responseJSON;
-                let msg = r?.error || 'Error al registrar empleado.';
-                if (r?.details) {
-                    const fields = Object.keys(r.details);
-                    if (fields.length > 0) msg = r.details[fields[0]][0];
+                let errorListHtml = '';
+
+                if (r && r.details) {
+                    // Errores de campo
+                    for (const field in r.details) {
+                        const message = r.details[field];
+                        const input = $(`#${field}`);
+                        input.addClass('is-invalid');
+                        $(`#error-${field}`).text(message);
+                        errorListHtml += `<li>${message}</li>`;
+                    }
+                    // Mostrar lista de errores general
+                    $('#error-list').html(errorListHtml);
+                    $('#form-error-alerts').removeClass('d-none');
+                } else {
+                    // Error general (IntegrityError, Exception)
+                    Swal.fire('Error', r?.error || 'Error al registrar empleado.', 'error');
                 }
-                Swal.fire('Error', msg, 'error');
             }
         });
     });
 
+    // ============================================================
+    // 4. Modificación de Empleado (Ajustado para 'usuario_emp' y Rol)
+    // ============================================================
     $('#dataTableEmpleadosDisponibles tbody').on('click', '.btn-editar', function() {
         const rowData = dataTableDisponibles.row($(this).parents('tr')).data();
+        
+        // 1. Llenar campos
         $('#modificar_id_empleado').val(rowData.id_empleado);
         $('#modificar_dni_emp').val(rowData.dni_emp);
         $('#modificar_apellido_emp').val(rowData.apellido_emp);
@@ -133,16 +157,45 @@ $(document).ready(function() {
         $('#modificar_telefono_emp').val(rowData.telefono_emp);
         $('#modificar_domicilio_emp').val(rowData.domicilio_emp);
         $('#modificar_fecha_alta_emp').val(rowData.fecha_alta_emp);
+        $('#modificar_usuario_emp').val(rowData.usuario_emp || '');
+        
+        // ASUMIMOS que la vista serializa 'usuario_emp' para que esto funcione
+        $('#modificar_usuario_emp').val(rowData.usuario_emp || ''); 
+
+        // 2. Seleccionar el rol actual
+        // Dado que la vista solo serializa el nombre del rol ('rol_emp'), se debe buscar el ID del rol
+        // en el select del modal. Esto asume que el nombre del rol es único.
+        const rolActualNombre = rowData.rol_emp;
+        const selectRol = $('#modificar_id_rol');
+        let rolId = '';
+
+        selectRol.find('option').each(function() {
+            // Se asume que el texto de la opción es el nombre del rol.
+            if ($(this).text().trim() === rolActualNombre) {
+                rolId = $(this).val();
+                return false; // Salir del each
+            }
+        });
+        
+        // Si no se encuentra (por defecto 'Sin Rol Asignado'), se deja el select vacío o en el primer valor
+        selectRol.val(rolId);
+        
+        // 3. Mostrar Modal
         $('#modificarEmpleadoModal').modal('show');
     });
 
     $('#modificarEmpleadoForm').on('submit', function(e) {
         e.preventDefault();
+        const form = $(this);
         const id = $('#modificar_id_empleado').val();
+        
+        // Limpiar alerta de errores
+        $('#modificar-error-alert').addClass('d-none').text('');
+
         $.ajax({
             url: window.AppUrls.modificarEmpleado + id + '/',
             method: 'POST',
-            data: $(this).serialize(),
+            data: form.serialize(),
             success: function(response) {
                 Swal.fire('¡Éxito!', response.message || 'Empleado modificado correctamente.', 'success');
                 $('#modificarEmpleadoModal').modal('hide');
@@ -150,17 +203,25 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 const r = xhr.responseJSON;
-                Swal.fire('Error', r?.error || 'Error al modificar empleado.', 'error');
+                const errorMessage = r?.error || 'Error al modificar empleado.';
+                
+                $('#modificar-error-alert').text(errorMessage).removeClass('d-none');
+                // Adicionalmente, se puede mostrar una alerta SWAL para errores fatales/generales
+                // Swal.fire('Error', errorMessage, 'error');
             }
         });
     });
 
+    // ============================================================
+    // 5. Baja/Borrado Lógico (Uso de Swal.fire y mensaje de éxito de la vista)
+    // ============================================================
     $('#dataTableEmpleadosDisponibles tbody').on('click', '.btn-borrar', function() {
         const id = $(this).data('id');
         const nombre = $(this).data('nombre');
+        
         Swal.fire({
             title: '¿Estás seguro?',
-            text: `Se dará de baja al empleado: ${nombre}.`,
+            text: `Se dará de baja (borrado lógico) al empleado: ${nombre}.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -173,7 +234,7 @@ $(document).ready(function() {
                     method: 'POST',
                     data: { csrfmiddlewaretoken: $('[name="csrfmiddlewaretoken"]').val() },
                     success: function(response) {
-                        Swal.fire('¡Baja realizada!', response.message, 'success');
+                        Swal.fire('¡Baja realizada!', response.message || 'Empleado borrado lógicamente.', 'success');
                         recargarTablas();
                     },
                     error: function(xhr) {
@@ -184,12 +245,16 @@ $(document).ready(function() {
         });
     });
 
+    // ============================================================
+    // 6. Restauración (Uso de Swal.fire y mensaje de éxito de la vista)
+    // ============================================================
     $('#dataTableEmpleadosEliminados tbody').on('click', '.btn-restaurar', function() {
         const id = $(this).data('id');
         const nombre = $(this).data('nombre');
+        
         Swal.fire({
             title: '¿Estás seguro?',
-            text: `Se restaurará al empleado: ${nombre}.`,
+            text: `Se restaurará (reactivará) al empleado: ${nombre}.`,
             icon: 'info',
             showCancelButton: true,
             confirmButtonColor: '#28a745',
@@ -202,7 +267,7 @@ $(document).ready(function() {
                     method: 'POST',
                     data: { csrfmiddlewaretoken: $('[name="csrfmiddlewaretoken"]').val() },
                     success: function(response) {
-                        Swal.fire('¡Restaurado!', response.message, 'success');
+                        Swal.fire('¡Restaurado!', response.message || 'Empleado restaurado exitosamente.', 'success');
                         recargarTablas();
                     },
                     error: function(xhr) {
@@ -215,14 +280,15 @@ $(document).ready(function() {
 
 
     // ======================================================================
-    // 6. CONTROL DE PESTAÑAS (AJUSTE DE DATATABLES)
+    // 7. CONTROL DE PESTAÑAS (AJUSTE DE DATATABLES - Usando Bootstrap 5)
     // ======================================================================
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-        const target = $(e.target).attr("href");
-        if (target === '#empleadosEliminadosTab' && dataTableEliminados) {
+    $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+        const targetId = $(e.target).attr("data-bs-target");
+        
+        if (targetId === '#empleadosEliminadosTab' && dataTableEliminados) {
             dataTableEliminados.columns.adjust().responsive.recalc();
         }
-        if (target === '#empleadosDisponiblesTab' && dataTableDisponibles) {
+        if (targetId === '#empleadosDisponiblesTab' && dataTableDisponibles) {
             dataTableDisponibles.columns.adjust().responsive.recalc();
         }
     });

@@ -5,12 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Mi Tienda Mateo{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}">
     
-    <!-- Es mejor cargar el CSS de DataTables aquí, en el HEAD -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.0.7/css/dataTables.dataTables.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    {% block styles %}
+    {% endblock %}
     
     <style>
         /* Estilos básicos para la nueva sección de usuario */
@@ -19,7 +23,7 @@
             align-items: center;
             margin-right: 1rem;
             font-weight: 600;
-            color: #333; /* Color oscuro para contraste */
+            color: #333;
         }
         /* Ajustar el contenedor flex para los elementos de la derecha */
         .header-controls {
@@ -28,11 +32,10 @@
         }
         /* Mejorar el estilo visual del botón/enlace de logout */
         #logout-link {
-            text-decoration: none; /* Quitar subrayado del enlace */
+            text-decoration: none;
             padding: 0.5rem 1rem;
-            border-radius: 9999px; /* rounded-full */
+            border-radius: 9999px;
             font-weight: 500;
-            /* Usamos clases btn-outline-danger de Bootstrap */
             border-color: #dc3545;
             color: #dc3545;
             transition: all 0.2s;
@@ -51,77 +54,80 @@
             </div>
             <nav>
                 <ul>
-                    <li><a href="{% url 'a_inicio:inicio' %}"><i class="fas fa-home"></i> Inicio </a></li>
+                    
+                    <li><a href="{% url 'a_inicio:inicio' %}"> Inicio </a></li>
+                    <li><a href="{% url 'a_central:listar_billeteras' %}"> Billeteras </a></li>
+                    <li><a href="{% url 'a_cajas:listar_cajas' %}"> Cajas </a></li>
+                    
+                    <li><a href="#"> Compras </a></li>
+                    <li><a href="{% url 'a_central:listar_empleados' %}"> Empleados </a></li>
+                    
                     <li class="has-submenu">
-                        <a href="#"><i class="fas fa-chart-bar"></i> Empleados <i class="fas fa-chevron-right submenu-arrow"></i></a>
+                        <a href="#" class="submenu-toggle"> Sucursales <i class="fas fa-chevron-right submenu-arrow"></i></a>
                         <ul class="submenu">
-                            <li><a href="{% url 'a_central:listar_empleados' %}"><i class="fas fa-file-alt"></i> Ver empleados </a></li>
-                            <li><a href="#"><i class="fas fa-file-alt"></i> Agregar opción </a></li>
-                            
+                            <li><a href="{% url 'a_central:listar_locales' %}"> Ver sucursales </a></li>
+                            <li><a href="{% url 'a_central:listar_provincias' %}"> Provincias </a></li>
                         </ul>
                     </li>
+                    
                     <li class="has-submenu">
-                        <a href="#"><i class="fas fa-chart-bar"></i> Sucursales <i class="fas fa-chevron-right submenu-arrow"></i></a>
+                        <a href="#" class="submenu-toggle"> Stock <i class="fas fa-chevron-right submenu-arrow"></i></a>
                         <ul class="submenu">
-                            <li><a href="#"><i class="fas fa-file-alt"></i> Ver sucursales </a></li>
-                            <li><a href="{% url 'a_central:listar_provincias' %}"><i class="fas fa-file-alt"></i> Provincias </a></li>
+                            <li><a href="#"> Ver stock </a></li>
+                            <li><a href="{% url 'a_central:listar_marcas' %}"> Marcas </a></li>
+                            <li><a href="{% url 'a_central:listar_productos' %}"> Productos </a></li>
+                            <li><a href="{% url 'a_central:listar_proveedores' %}"> Proveedores </a></li>
                         </ul>
                     </li>
-                    <li class="has-submenu">
-                        <a href="#"><i class="fas fa-chart-bar"></i> Stock <i class="fas fa-chevron-right submenu-arrow"></i></a>
-                        <ul class="submenu">
-                            <li><a href="#"><i class="fas fa-file-alt"></i> Ver stock </a></li>
-                            <li><a href="#"><i class="fas fa-file-alt"></i> Marcas </a></li>
-                            <li><a href="#"><i class="fas fa-file-alt"></i> Proveedores </a></li>
-                        </ul>
-                    </li>
-                    <li class="has-submenu">
-                        <a href="#"><i class="fas fa-cogs"></i> Otra <i class="fas fa-chevron-right submenu-arrow"></i></a>
+                    <li><a href="#"> Ventas </a></li>
+                    <!--<li class="has-submenu">
+                        <a href="#" class="submenu-toggle"><i class="fas fa-cogs"></i> Otra <i class="fas fa-chevron-right submenu-arrow"></i></a>
                         <ul class="submenu">
                             <li><a href="#"><i class="fas fa-user-cog"></i> Opción 1 </a></li>
                             <li><a href="#"><i class="fas fa-cog"></i> Opción 2 </a></li>
                         </ul>
-                    </li>
+                    </li>-->
+                    
                 </ul>
             </nav>
-            <a href="#"> Términos y condiciones </a>
-            <a href="#"> Políticas y privacidad </a>
+
+            <a href="#">Términos y condiciones</a>
+            <a href="#">Políticas y privacidad</a>
         </aside>
 
         <div class="content">
             <header>
                 <button id="menu-toggle" class="bg-transparent border-0"><i class="fas fa-bars fa-2x"></i></button>
                 <div class="header-title">
-                     <img src="{% static 'img/logo.png' %}" alt="Logo de Mi Tienda" class="d-none d-md-block header-logo">
+                    <img src="{% static 'img/logo.png' %}" alt="Logo de Mi Tienda Mateo" class="d-none d-md-block header-logo">
                     <h1 class="d-none d-md-block">Mi Tienda Mateo</h1>
                 </div>
                 
-                <!-- INICIO DEL BLOQUE ACTUALIZADO -->
+                <!-- Reloj -->
+                <p class="reloj-fecha"> 
+                    <span id="reloj-dinamico" style="font-weight: bold;"></span>
+                </p>
+
                 <div class="header-controls">
                     {% if user.is_authenticated %}
-                        <!-- Mostramos el nombre del usuario -->
                         <span class="user-info d-none d-sm-block mr-3">
                             <i class="fa-solid fa-user fa-lg mr-2"></i> 
                             {{ user.username }}
                         </span>
                         
-                        <!-- Formulario oculto para Cerrar Sesión (Método POST seguro con CSRF) -->
                         <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
                             {% csrf_token %}
                         </form>
 
-                        <!-- Enlace con mejor estilo que activa el formulario -->
                         <a href="#" id="logout-link" class="d-flex align-items-center">
                             <i class="fas fa-sign-out-alt mr-2"></i> 
                             Cerrar Sesión
                         </a>
                         
                     {% else %}
-                        <!-- Si no está autenticado, mostramos el ícono o un enlace de login -->
                         <i class="fa-solid fa-user fa-2xl"></i>
                     {% endif %}
                 </div>
-                <!-- FIN DEL BLOQUE ACTUALIZADO -->
             </header>
             <main>
                 {% block content %}
@@ -130,24 +136,63 @@
         </div>
     </div>
     
-    <!-- 1. Carga de Librerías Base -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <script type="text/javascript" src="https://cdn.datatables.net/2.0.7/js/dataTables.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- 2. Script base del menú o lógica general -->
     <script src="{% static 'js/base.js' %}"></script>
     
-    <!-- 3. Script para enviar el formulario de logout de manera segura -->
     <script>
-        document.getElementById('logout-link').addEventListener('click', function(e) {
-            e.preventDefault();
-            document.getElementById('logout-form').submit();
-        });
+        const logoutLink = document.getElementById('logout-link');
+        
+        if (logoutLink) {
+            logoutLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('logout-form').submit();
+            });
+        }
+
+        
+
+        function actualizarReloj() {
+            // Crea un nuevo objeto Date con la hora actual del cliente
+            const ahora = new Date();
+            
+            // Define las opciones de formato
+            const opciones = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                hour12: true // Muestra AM/PM
+            };
+            
+            // Formatea la fecha y hora al idioma local (ej: español)
+            const formato = ahora.toLocaleTimeString('es-AR', opciones);
+
+            // Inserta el texto formateado en el elemento con el ID 'reloj-dinamico'
+            document.getElementById('reloj-dinamico').textContent = formato;
+        }
+
+        // Llama a la función inmediatamente al cargar la página
+        actualizarReloj();
+        
+        // Configura la función para que se ejecute cada 1000 milisegundos (1 segundo)
+        // Esto es lo que permite la actualización dinámica sin recarga.
+        setInterval(actualizarReloj, 1000);
+
+
+
+
     </script>
 
-    <!-- 4. ¡IMPORTANTE! El bloque 'scripts' DEBE ser el último, aquí se inserta provincias.js -->
     {% block scripts %}
     {% endblock %}
 </body>

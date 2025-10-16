@@ -1,0 +1,206 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Productos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-4 text-center">Gestión de Productos</h4>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrarProductoModal">
+                Registrar Producto
+            </button>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs" id="productosTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#productosDisponiblesTab" type="button" role="tab" aria-controls="productosDisponiblesTab" aria-selected="true">Productos disponibles</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="eliminados-tab" data-bs-toggle="tab" data-bs-target="#productosEliminadosTab" type="button" role="tab" aria-controls="productosEliminadosTab" aria-selected="false">Productos eliminados</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="productosTabsContent">
+        <div class="tab-pane fade show active" id="productosDisponiblesTab" role="tabpanel" aria-labelledby="disponibles-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableProductosDisponibles" class="table table-striped table-bordered text-center" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th class="d-none">ID</th>
+                                            <th class="text-center">Nombre</th>
+                                            <th class="text-center">Marca</th>
+                                            <th class="text-center">Precio Unitario</th>
+                                            <th class="text-center">Vencimiento</th>
+                                            <th class="text-center">Fecha Alta</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="productosEliminadosTab" role="tabpanel" aria-labelledby="eliminadas-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableProductosEliminados" class="table table-striped table-bordered text-center" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th class="d-none">ID</th>
+                                            <th class="text-center">Nombre</th>
+                                            <th class="text-center">Marca</th>
+                                            <th class="text-center">Fecha Baja</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal fade" id="registrarProductoModal" tabindex="-1" aria-labelledby="registrarProductoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="registrarProductoForm" method="post" action="{% url 'a_central:registrar_producto' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar nuevo Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="form-error-alerts" class="alert alert-danger d-none" role="alert">
+                        <strong>¡Error!</strong> Revisa los campos ingresados.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="nombre_producto" class="form-label">Nombre:</label>
+                        <input type="text" class="form-control" id="nombre_producto" name="nombre_producto" required>
+                        <div class="invalid-feedback" id="error-nombre_producto"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_marca" class="form-label">Marca:</label>
+                        <select class="form-select" id="id_marca" name="id_marca">
+                            <option value="">-- Sin Marca --</option>
+                            {% for marca in marcas %}
+                                <option value="{{ marca.id_marca }}">{{ marca.nombre_marca }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback" id="error-id_marca"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="precio_unit_prod" class="form-label">Precio Unitario:</label>
+                        <input type="number" step="0.01" class="form-control" id="precio_unit_prod" name="precio_unit_prod" required>
+                        <div class="invalid-feedback" id="error-precio_unit_prod"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="fecha_venc_prod" class="form-label">Fecha de Vencimiento:</label>
+                        <input type="date" class="form-control" id="fecha_venc_prod" name="fecha_venc_prod">
+                        <div class="invalid-feedback" id="error-fecha_venc_prod"></div>
+                    </div>
+                    
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar producto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modificarProductoModal" tabindex="-1" aria-labelledby="modificarProductoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="modificarProductoForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" id="modificar_id_producto" name="id_producto">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modificar Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modificar-error-alert" class="alert alert-danger d-none" role="alert"></div>
+                    
+                    <div class="mb-3">
+                        <label for="modificar_nombre_producto" class="form-label">Nombre:</label>
+                        <input type="text" class="form-control" id="modificar_nombre_producto" name="nombre_producto" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modificar_id_marca" class="form-label">Marca:</label>
+                        <select class="form-select" id="modificar_id_marca" name="id_marca">
+                            <option value="">-- Sin Marca --</option>
+                            {% for marca in marcas %}
+                                <option value="{{ marca.id_marca }}">{{ marca.nombre_marca }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modificar_precio_unit_prod" class="form-label">Precio Unitario:</label>
+                        <input type="number" step="0.01" class="form-control" id="modificar_precio_unit_prod" name="precio_unit_prod" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modificar_fecha_venc_prod" class="form-label">Fecha de Vencimiento:</label>
+                        <input type="date" class="form-control" id="modificar_fecha_venc_prod" name="fecha_venc_prod">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modificar_fecha_alta_prod" class="form-label">Fecha Alta:</label>
+                        <input type="date" class="form-control" id="modificar_fecha_alta_prod" name="fecha_alta_prod" disabled>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.AppUrls = {
+    modificarProducto: "{% url 'a_central:modificar_producto' producto_id=0 %}".replace('/0/', '/'),
+    borrarProducto: "{% url 'a_central:borrar_producto' producto_id=0 %}".replace('/0/', '/'),
+    recuperarProducto: "{% url 'a_central:recuperar_producto' producto_id=0 %}".replace('/0/', '/'),
+};
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'a_central/js/productos.js' %}"></script>
+{% endblock %}

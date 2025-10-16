@@ -178,29 +178,21 @@ background-color: var(--menu-item-hover);
 
 
 .has-submenu .submenu {
-display: none;
-list-style: none;
-padding-left: 20px;
-margin-top: 5px;
-background-color: var(--submenu-bg);
-border-radius: 8px;
-overflow: hidden;
+    display: none;
 }
-
 
 .has-submenu.open .submenu {
-display: block;
+    display: block;
 }
 
-
+/* Estilos para la flecha del submenú */
 .submenu-arrow {
-margin-left: auto;
-transition: transform 0.3s ease;
+    margin-left: auto; /* Empuja la flecha a la derecha */
+    transition: transform 0.3s ease;
 }
-
 
 .has-submenu.open .submenu-arrow {
-transform: rotate(90deg);
+    transform: rotate(90deg); /* Rota la flecha cuando el menú está abierto */
 }
 
 
@@ -245,3 +237,7 @@ body.menu-open .menu {
     height: 40px; 
 }
 
+.reloj-fecha {
+    border-radius: 10%;
+    color: #ffffff;
+}

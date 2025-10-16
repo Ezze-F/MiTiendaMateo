@@ -1,0 +1,263 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de cajas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-4 text-center">Gestión de cajas</h4>
+        </div>
+    </div>
+
+    <!-- Botón para Abrir el Modal de Registro -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrarCajaModal">
+                Registrar caja
+            </button>
+        </div>
+    </div>
+
+    <!-- Pestañas (Tabs) para Cajas Disponibles, Eliminadas y ARQUEOS -->
+    <ul class="nav nav-tabs" id="cajasTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#cajasDisponiblesTab" type="button" role="tab" aria-controls="cajasDisponiblesTab" aria-selected="true">Cajas disponibles</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="eliminados-tab" data-bs-toggle="tab" data-bs-target="#cajasEliminadasTab" type="button" role="tab" aria-controls="cajasEliminadasTab" aria-selected="false">Cajas eliminadas</button>
+        </li>
+        <!-- NUEVA PESTAÑA DE ARQUEO -->
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="arqueos-tab" data-bs-toggle="tab" data-bs-target="#arqueoCajasTab" type="button" role="tab" aria-controls="arqueoCajasTab" aria-selected="false">Historial de Arqueos</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="cajasTabsContent">
+        
+        <!-- Pestaña de Cajas Disponibles -->
+        <div class="tab-pane fade show active" id="cajasDisponiblesTab" role="tabpanel" aria-labelledby="disponibles-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableCajasDisponibles" class="table table-striped table-bordered text-center" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th class="d-none">ID</th>
+                                            <th class="text-center">Local</th>
+                                            <th class="text-center">Número</th>
+                                            <th class="text-center">Estado</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Contenido cargado por AJAX / DataTables -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña de Cajas Eliminadas (Borrado Lógico) -->
+        <div class="tab-pane fade" id="cajasEliminadasTab" role="tabpanel" aria-labelledby="eliminadas-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableCajasEliminadas" class="table table-striped table-bordered text-center" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th class="d-none">ID</th>
+                                            <th class="text-center">Local</th>
+                                            <th class="text-center">Número</th>
+                                            <th class="text-center">Fecha Baja</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Contenido cargado por AJAX / DataTables -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NUEVA PESTAÑA: HISTORIAL DE ARQUEOS -->
+        <div class="tab-pane fade" id="arqueoCajasTab" role="tabpanel" aria-labelledby="arqueos-tab">
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow mb-4">
+                        
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="dataTableArqueos" class="table table-striped table-bordered text-center" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th class="d-none">ID</th>
+                                            <th class="text-center">Local</th>
+                                            <th class="text-center">N° Caja</th>
+                                            <th class="text-center">Apertura</th>
+                                            <th class="text-center">Cierre</th>
+                                            <th class="text-center">Inicial (Físico)</th>
+                                            <th class="text-center">Final (Físico)</th>
+                                            <th class="text-center">Ingresos BV</th>
+                                            <th class="text-center">Egresos BV</th>
+                                            <th class="text-center">Diferencia</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Contenido cargado por AJAX / DataTables -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+</div>
+
+<!-- ========================= MODALES ========================= -->
+
+<!-- Modal de Registro de Caja -->
+<div class="modal fade" id="registrarCajaModal" tabindex="-1" aria-labelledby="registrarCajaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- La acción usará el namespace correcto, pero será manejada por JS vía AJAX -->
+            <form id="registrarCajaForm" method="post" action="{% url 'a_cajas:registrar_caja' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar nueva caja</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="form-error-alerts" class="alert alert-danger d-none" role="alert">
+                        <strong>¡Error!</strong> Revisa los campos ingresados.
+                    </div>
+                    
+                    <!-- Renderizado de campos del formulario CajaForm -->
+                    <div class="mb-3">
+                        {{ form.id_loc_com.label_tag }}
+                        {{ form.id_loc_com }}
+                        <div class="invalid-feedback" id="error-id_loc_com"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.numero_caja.label_tag }}
+                        {{ form.numero_caja }}
+                        <div class="invalid-feedback" id="error-numero_caja"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar caja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Modificación de Caja -->
+<div class="modal fade" id="modificarCajaModal" tabindex="-1" aria-labelledby="modificarCajaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- La acción será seteada por JS con el ID de la caja -->
+            <form id="modificarCajaForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" id="modificar_id_caja" name="id_caja">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Modificar caja</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modificar-error-alert" class="alert alert-danger d-none" role="alert"></div>
+                    
+                    <!-- 
+                        Renderizamos los campos del formulario. 
+                        En este punto, el formulario 'form' en el contexto es un formulario vacío, 
+                        pero sirve como estructura para que JS inyecte los valores.
+                        La lógica de forms.py asegura que solo se muestren 'local_readonly' y 'numero_caja'.
+                    -->
+                    {% for field in form %}
+                        {% if field.name == 'local_readonly' or field.name == 'numero_caja' %}
+                            <div class="mb-3">
+                                {{ field.label_tag }}
+                                <!-- Se usa un div para asegurar que el campo se muestre, 
+                                     ya que su valor será rellenado por JS al abrir el modal. -->
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <!-- El campo id_loc_com (oculto en forms.py para edición) se maneja automáticamente
+                             ya que solo se incluyen 'local_readonly' y 'numero_caja' en el loop visible. 
+                             El campo oculto se deja fuera para ser inyectado por JS o se asume su manejo.
+                             Para simplicidad, lo incluimos explícitamente si es oculto. -->
+                        {% if field.is_hidden %}
+                            {{ field }}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- NOTA: JS debe ser capaz de:
+                         1. Establecer el valor inicial de local_readonly.
+                         2. Establecer el valor de numero_caja.
+                         3. Establecer el valor del campo oculto id_loc_com.
+                         4. Actualizar la acción del formulario.
+                    -->
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Objeto global para almacenar las URLs de la aplicación, usando el namespace 'a_cajas'
+window.AppUrls = {
+    // URLs de Acciones (necesitan caja_id)
+    // Se usa el reemplazo de /0/ por / para manejar los IDs en JS
+    abrirCaja: "{% url 'a_cajas:abrir_caja' caja_id=0 %}".replace('/0/', '/'),
+    cerrarCaja: "{% url 'a_cajas:cerrar_caja' caja_id=0 %}".replace('/0/', '/'),
+    modificarCaja: "{% url 'a_cajas:modificar_caja' caja_id=0 %}".replace('/0/', '/'),
+    borrarCaja: "{% url 'a_cajas:borrar_caja' caja_id=0 %}".replace('/0/', '/'),
+    recuperarCaja: "{% url 'a_cajas:recuperar_caja' caja_id=0 %}".replace('/0/', '/'),
+    
+    // URLs de API 
+    apiCajasDisponibles: "{% url 'a_cajas:cajas_disponibles_api' %}", 
+    apiCajasEliminadas: "{% url 'a_cajas:cajas_eliminadas_api' %}", 
+    // URL para obtener el historial de arqueos
+    apiArqueos: "{% url 'a_cajas:arqueos_api' %}", 
+
+    // URL para el registro del formulario (manejado por JS)
+    registrarCaja: "{% url 'a_cajas:registrar_caja' %}", 
+};
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'a_cajas/js/cajas.js' %}"></script>
+{% endblock %}

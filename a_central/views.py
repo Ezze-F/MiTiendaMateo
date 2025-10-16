@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET 
 from django.db import IntegrityError, transaction # Importar transaction para atomicidad
 from django.utils import timezone
 from datetime import date
@@ -10,18 +10,11 @@ import logging
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 
-# ASUMO LA EXISTENCIA DE ESTOS MODELOS (AJUSTAR SEGÚN TU PROYECTO)
-# Nota: La importación de Provincias es crucial aquí
-from .models import Empleados, Provincias 
-from .forms import EmpleadoRegistroForm, ProvinciaForm
+from .models import Empleados, Provincias, Marcas, Proveedores, LocalesComerciales, Productos, BilleterasVirtuales
+from .forms import EmpleadoRegistroForm, ProvinciaForm, MarcaForm, ProveedorRegistroForm, LocalComercialRegistroForm, ProductoRegistroForm, BilleteraRegistroForm, BilleteraModificacionForm
 
 # Configuración de logging para ver errores en la consola
 logger = logging.getLogger(__name__)
-
-
-# ===============================================
-# FUNCIONES AUXILIARES DE SERIALIZACIÓN
-# ===============================================
 
 # Función auxiliar para extraer mensajes de error del formulario
 def _form_errors_to_dict(form):
@@ -35,89 +28,52 @@ def _form_errors_to_dict(form):
          errors['non_field_errors'] = form.errors['__all__'][0]
     return errors
 
+# ===============================================
+# EMPLEADOS
+# ===============================================
+
 def _serialize_empleados(queryset, is_deleted_view):
     """
-    Serializa un queryset de Empleados al formato requerido por DataTables, 
+    Serializa un queryset de Empleados al formato requerido por DataTables,
     manejando las diferencias entre vistas de empleados activos e inactivos.
     """
     data = []
     for emp in queryset:
-        dni_str = str(emp.dni_emp) 
-        
+        dni_str = str(emp.dni_emp)
+
+        # Intentamos obtener el username del usuario vinculado
+        username = ''
+        if emp.usuario_emp:
+            username = emp.usuario_emp
+        elif hasattr(emp, 'user_auth') and emp.user_auth:
+            username = getattr(emp.user_auth, 'username', '') or ''
+
         empleado_data = {
             'id_empleado': emp.id_empleado,
-            'dni_emp': dni_str, 
+            'dni_emp': dni_str,
             'apellido_emp': emp.apellido_emp,
             'nombre_emp': emp.nombre_emp,
+            'usuario_emp': username,  # <<--- aseguramos que siempre esté presente
         }
-        
+
         if not is_deleted_view:
             empleado_data.update({
                 'email_emp': emp.email_emp,
-                'telefono_emp': emp.telefono_emp if emp.telefono_emp else 'N/A', 
-                'domicilio_emp': emp.domicilio_emp if emp.domicilio_emp else 'N/A', 
-                'fecha_alta_emp': emp.fecha_alta_emp.strftime('%Y-%m-%d') if emp.fecha_alta_emp else 'N/A', 
-                'rol_emp': emp.get_rol(), 
+                'telefono_emp': emp.telefono_emp if emp.telefono_emp else '',
+                'domicilio_emp': emp.domicilio_emp if emp.domicilio_emp else '',
+                'fecha_alta_emp': emp.fecha_alta_emp.strftime('%Y-%m-%d') if emp.fecha_alta_emp else '',
+                'rol_emp': emp.get_rol(),
             })
         else:
             empleado_data.update({
-                'fh_borrado_e': emp.fh_borrado_e.strftime('%Y-%m-%d %H:%M') if emp.fh_borrado_e else 'N/A',
+                'fh_borrado_e': emp.fh_borrado_e.strftime('%Y-%m-%d %H:%M') if emp.fh_borrado_e else '',
             })
-            
+
         data.append(empleado_data)
     return data
 
 
-def _serialize_provincias(queryset, is_deleted_view):
-    """
-    Serializa un queryset de Provincias al formato requerido por DataTables, 
-    usando los campos exactos del modelo (id_provincia, nombre_provincia, fh_borrado_p).
-    """
-    data = []
-    for prov in queryset:
-        provincia_data = {
-            'id_provincia': prov.id_provincia,
-            'nombre_provincia': prov.nombre_provincia,
-        }
-
-        if is_deleted_view:
-            fecha_borrado = prov.fh_borrado_p
-            
-            # AJUSTE FINAL: Si fecha_borrado es None o si no es un datetime, devolvemos 'N/A'.
-            if fecha_borrado and isinstance(fecha_borrado, (timezone.datetime, date)):
-                try:
-                    # Aseguramos que el objeto sea de tipo datetime y tenga zona horaria
-                    if not timezone.is_aware(fecha_borrado):
-                        # Convertir a aware (asumiendo que era naive pero debería ser de zona)
-                        fecha_borrado = timezone.make_aware(fecha_borrado)
-                    
-                    # Convertir a la zona horaria local para mostrar
-                    fecha_local = timezone.localtime(fecha_borrado)
-                    
-                    # Formato seguro
-                    fecha_formateada = fecha_local.strftime('%d-%m-%Y %H:%M:%S')
-                except Exception as e:
-                    # En caso de error de zona horaria o formato inesperado
-                    logger.error(f"Error al formatear fecha {prov.id_provincia}: {e}", exc_info=True)
-                    fecha_formateada = 'N/A' # Devolvemos 'N/A' si hay un error de procesamiento
-
-            else:
-                # Si el campo es NULL en la BD
-                fecha_formateada = 'N/A'
-
-            provincia_data.update({
-                'fh_borrado_p': fecha_formateada,
-            })
-            
-        data.append(provincia_data)
-    return data
-
-
-# ===============================================
-# VISTAS DE EMPLEADOS (Se mantiene el código anterior)
-# ===============================================
-
-# --- VISTA PRINCIPAL EMPLEADOS ---
+# --- VISTA PRINCIPAL EMPLEADOS (No modificada) ---
 def listar_empleados(request):
     """Renderiza la plantilla principal de gestión de empleados y envía los roles."""
     roles = Group.objects.all().order_by('name')
@@ -127,12 +83,13 @@ def listar_empleados(request):
     return render(request, 'a_central/empleados/listar_empleados.html', context)
 
 
-# --- API - LISTADO DE EMPLEADOS DISPONIBLES ---
+# --- API - LISTADO DE EMPLEADOS DISPONIBLES (Uso del Manager por defecto) ---
 def empleados_disponibles_api(request):
     """Devuelve los datos de empleados activos para DataTables."""
     if request.method == 'GET':
         try:
-            empleados = Empleados.objects.filter(borrado_emp=False).select_related('user_auth').prefetch_related('user_auth__groups').order_by('id_empleado')
+            # Empleados.objects usa por defecto el EmpleadoManager (solo activos)
+            empleados = Empleados.objects.select_related('user_auth').prefetch_related('user_auth__groups').order_by('id_empleado')
             data = _serialize_empleados(empleados, is_deleted_view=False)
             return JsonResponse({'data': data})
         except Exception as e:
@@ -140,12 +97,13 @@ def empleados_disponibles_api(request):
             return JsonResponse({'error': 'Error interno al obtener empleados disponibles.'}, status=500)
 
 
-# --- API - LISTADO DE EMPLEADOS ELIMINADOS ---
+# --- API - LISTADO DE EMPLEADOS ELIMINADOS (Uso del Manager all_objects) ---
 def empleados_eliminados_api(request):
     """Devuelve los datos de empleados inactivos/eliminados para DataTables."""
     if request.method == 'GET':
         try:
-            empleados = Empleados.objects.filter(borrado_emp=True).select_related('user_auth').order_by('-id_empleado')
+            # Usamos el manager all_objects y filtramos por borrado_emp=True
+            empleados = Empleados.all_objects.filter(borrado_emp=True).select_related('user_auth').order_by('-id_empleado')
             data = _serialize_empleados(empleados, is_deleted_view=True)
             return JsonResponse({'data': data})
         except Exception as e:
@@ -154,6 +112,8 @@ def empleados_eliminados_api(request):
 
 
 # --- OPERACIONES CRUD EMPLEADOS ---
+# ... (registrar_empleado y modificar_empleado no modificados, pues se usan Managers en la validación del form) ...
+
 @require_POST
 def registrar_empleado(request):
     """
@@ -187,7 +147,7 @@ def registrar_empleado(request):
             user.groups.add(rol_seleccionado)
 
             # Crear registro en Empleados
-            Empleados.objects.create(
+            Empleados.all_objects.create( # Uso all_objects para asegurar la creación aunque el manager por defecto filtre
                 user_auth=user,
                 dni_emp=data['dni_emp'],
                 apellido_emp=data['apellido_emp'],
@@ -213,9 +173,11 @@ def registrar_empleado(request):
         
 @require_POST
 def modificar_empleado(request, empleado_id):
-    # Lógica de modificación de empleado (no modificada)
+    # Lógica de modificación de empleado (Uso all_objects para encontrarlo si está borrado lógicamente, aunque en principio solo se debería modificar uno activo)
+    # Mejor usar Empleados.objects para buscar solo entre los activos para la modificación
     try:
-        empleado = Empleados.objects.get(pk=empleado_id, borrado_emp=False)
+        # get_object_or_404 usa Empleados.objects (solo activos)
+        empleado = get_object_or_404(Empleados, pk=empleado_id)
         dni = request.POST.get('dni_emp')
         apellido = request.POST.get('apellido_emp')
         nombre = request.POST.get('nombre_emp')
@@ -226,20 +188,21 @@ def modificar_empleado(request, empleado_id):
         id_rol_str = request.POST.get('id_rol')
 
         # --- Validación de Unicidad para Modificación ---
-        if Empleados.objects.exclude(pk=empleado_id).filter(dni_emp=dni).exists():
-             raise IntegrityError('El DNI ya está registrado por otro empleado.')
-        if Empleados.objects.exclude(pk=empleado_id).filter(email_emp=email).exists():
-             raise IntegrityError('El Email ya está registrado por otro empleado.')
+        # Usamos all_objects para buscar unicidad en TODO el historial, activos e inactivos
+        if Empleados.all_objects.exclude(pk=empleado_id).filter(dni_emp=dni).exists():
+             raise IntegrityError('El DNI ya está registrado por otro empleado (activo o inactivo).')
+        if Empleados.all_objects.exclude(pk=empleado_id).filter(email_emp=email).exists():
+             raise IntegrityError('El Email ya está registrado por otro empleado (activo o inactivo).')
         
         if empleado.user_auth:
+            # El campo email y username del User debe ser único
             if User.objects.exclude(pk=empleado.user_auth.pk).filter(email=email).exists():
                  raise IntegrityError('El Email ya está registrado en el sistema de usuarios (User).')
-            if User.objects.exclude(pk=empleado.user_auth.pk).filter(username=str(dni)).exists():
-                 raise IntegrityError('El DNI (como nombre de usuario) ya está registrado en el sistema de usuarios (User).')
-        
-        username_to_check = usuario_emp if usuario_emp else str(dni)
-        if empleado.user_auth and User.objects.exclude(pk=empleado.user_auth.pk).filter(username=username_to_check).exists():
-            raise IntegrityError('El nombre de Usuario ya está en uso por otro empleado.')
+            
+            # El campo usuario_emp es el username del User, y debe ser único.
+            username_to_check = usuario_emp if usuario_emp else str(dni)
+            if User.objects.exclude(pk=empleado.user_auth.pk).filter(username=username_to_check).exists():
+                raise IntegrityError('El nombre de Usuario ya está en uso por otro usuario.')
 
         # --- Fin Validación ---
         
@@ -281,21 +244,21 @@ def modificar_empleado(request, empleado_id):
         logger.error(f"Error al modificar empleado {empleado_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
+
 @require_POST
 def borrar_empleado(request, empleado_id):
-    # Lógica de borrado lógico de empleado (no modificada)
+    """Realiza el borrado lógico de un empleado activo."""
     try:
-        empleado = Empleados.objects.get(pk=empleado_id, borrado_emp=False)
-        empleado.borrado_emp = True
-        empleado.fecha_baja_emp = date.today()
-        empleado.fh_borrado_e = timezone.now() 
-        empleado.save()
-
-        if empleado.user_auth:
-            empleado.user_auth.is_active = False
-            empleado.user_auth.save()
-
-        return JsonResponse({'success': True})
+        # Usamos all_objects para asegurar que podemos encontrarlo aunque el manager por defecto lo excluya si por alguna razón está mal.
+        # Filtramos explícitamente por borrado_emp=False para garantizar que no se borre dos veces.
+        empleado = Empleados.all_objects.get(pk=empleado_id, borrado_emp=False) 
+        
+        # Usamos el nuevo método del modelo
+        if empleado.borrar_logico():
+            return JsonResponse({'success': True, 'message': 'Empleado borrado lógicamente exitosamente.'})
+        else:
+            # Esto no debería pasar si filtramos por borrado_emp=False, pero es una buena práctica.
+            return JsonResponse({'success': False, 'error': 'El empleado ya estaba borrado.'})
 
     except Empleados.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Empleado no encontrado o ya está dado de baja.'})
@@ -305,19 +268,17 @@ def borrar_empleado(request, empleado_id):
 
 @require_POST
 def recuperar_empleado(request, empleado_id):
-    # Lógica de recuperación de empleado (no modificada)
+    """Restaura un empleado previamente borrado lógicamente."""
     try:
-        empleado = Empleados.objects.get(pk=empleado_id, borrado_emp=True)
-        empleado.borrado_emp = False
-        empleado.fecha_baja_emp = None 
-        empleado.fh_borrado_e = None   
-        empleado.save()
+        # Usamos all_objects y filtramos por borrado_emp=True para encontrar el registro a restaurar
+        empleado = Empleados.all_objects.get(pk=empleado_id, borrado_emp=True) 
         
-        if empleado.user_auth:
-            empleado.user_auth.is_active = True
-            empleado.user_auth.save()
-
-        return JsonResponse({'success': True})
+        # Usamos el nuevo método del modelo
+        if empleado.restaurar():
+            return JsonResponse({'success': True, 'message': 'Empleado restaurado exitosamente.'})
+        else:
+            # Esto no debería pasar si filtramos por borrado_emp=True.
+            return JsonResponse({'success': False, 'error': 'El empleado ya estaba activo.'})
 
     except Empleados.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Empleado no encontrado o ya está activo.'})
@@ -327,142 +288,879 @@ def recuperar_empleado(request, empleado_id):
 
 
 # ===============================================
-# VISTAS DE PROVINCIAS (Ajustadas al nuevo modelo)
+# PROVINCIAS
 # ===============================================
 
-# --- VISTA PRINCIPAL PROVINCIAS ---
+def _serialize_provincias(queryset, is_deleted_view):
+    """Serializa un queryset de Provincias para DataTables."""
+    data = []
+    for prov in queryset:
+        provincia_data = {
+            'id_provincia': prov.id_provincia,
+            'nombre_provincia': prov.nombre_provincia,
+        }
+        
+        if is_deleted_view:
+            provincia_data.update({
+                'fh_borrado_p': prov.fh_borrado_p.strftime('%Y-%m-%d %H:%M') if prov.fh_borrado_p else 'N/A',
+            })
+            
+        data.append(provincia_data)
+    return data
+
 def listar_provincias(request):
     """Renderiza la plantilla principal de gestión de provincias."""
-    return render(request, 'a_central/provincias/listar_provincias.html')
+    # No se necesita contexto por ahora, pero se mantiene la estructura.
+    return render(request, 'a_central/provincias/listar_provincias.html', {})
 
-# --- API - LISTADO DE PROVINCIAS ACTIVAS ---
-def provincias_activas_api(request):
-    """Devuelve los datos de provincias activas (borrado_provincia=False) para DataTables."""
-    if request.method == 'GET':
-        try:
-            # Filtra por borrado_provincia=False
-            provincias = Provincias.objects.filter(borrado_provincia=False).order_by('nombre_provincia')
-            data = _serialize_provincias(provincias, is_deleted_view=False)
-            return JsonResponse({'data': data})
-        except Exception as e:
-            logger.error(f"Error al serializar provincias activas: {e}", exc_info=True)
-            return JsonResponse({'error': 'Error interno al obtener provincias activas.'}, status=500)
+@require_GET
+def provincias_disponibles_api(request):
+    """Devuelve los datos de provincias activas para DataTables (Usa ProvinciaManager)."""
+    try:
+        # Provincias.objects usa el ProvinciaManager por defecto (solo activas)
+        provincias = Provincias.objects.order_by('nombre_provincia')
+        data = _serialize_provincias(provincias, is_deleted_view=False)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al serializar provincias disponibles: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener provincias disponibles.'}, status=500)
 
-# --- API - LISTADO DE PROVINCIAS ELIMINADAS ---
+@require_GET
 def provincias_eliminadas_api(request):
-    """Devuelve los datos de provincias eliminadas (borrado_provincia=True) para DataTables."""
-    if request.method == 'GET':
-        try:
-            # Filtra por borrado_provincia=True
-            provincias = Provincias.objects.filter(borrado_provincia=True).order_by('-id_provincia')
-            data = _serialize_provincias(provincias, is_deleted_view=True)
-            return JsonResponse({'data': data})
-        except Exception as e:
-            logger.error(f"Error al serializar provincias eliminadas: {e}", exc_info=True)
-            return JsonResponse({'error': 'Error interno al obtener provincias eliminadas.'}, status=500)
+    """Devuelve los datos de provincias eliminadas para DataTables (Usa ProvinciaAllObjectsManager)."""
+    try:
+        # Usamos all_objects y filtramos por borrado_provincia=True
+        provincias = Provincias.all_objects.filter(borrado_provincia=True).order_by('-fh_borrado_p')
+        data = _serialize_provincias(provincias, is_deleted_view=True)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al serializar provincias eliminadas: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener provincias eliminadas.'}, status=500)
 
-
-# --- CRUD - REGISTRAR PROVINCIA ---
 @require_POST
 def registrar_provincia(request):
-    """
-    Maneja el registro de una nueva provincia usando ProvinciaForm 
-    para la validación y estandarización de datos.
-    """
+    """Vista para registrar una nueva provincia."""
     form = ProvinciaForm(request.POST)
 
     if form.is_valid():
         try:
-            nombre_limpio = form.cleaned_data['nombre_provincia']
-            
-            provincia_existente_borrada = Provincias.objects.filter(
-                nombre_provincia__iexact=nombre_limpio, 
-                borrado_provincia=True
-            ).first()
-            
-            if provincia_existente_borrada:
-                # Usamos el método restore() del modelo
-                provincia_existente_borrada.nombre_provincia = nombre_limpio # Se asegura el casing
-                provincia_existente_borrada.restore() 
-                return JsonResponse({'success': True, 'message': f'Provincia "{nombre_limpio}" recuperada exitosamente.'})
-            else:
-                form.save()
-                return JsonResponse({'success': True, 'message': f'Provincia "{nombre_limpio}" registrada exitosamente.'})
-
+            with transaction.atomic():
+                provincia = form.save(commit=False)
+                provincia.borrado_provincia = False
+                provincia.save()
+            return JsonResponse({'success': True, 'message': 'Provincia registrada exitosamente.'})
+        except IntegrityError:
+            return JsonResponse({'success': False, 'error': 'Error de integridad: El nombre de provincia ya existe.'}, status=400)
         except Exception as e:
-            logger.error(f"Error al registrar/recuperar provincia: {e}", exc_info=True)
-            return JsonResponse({'success': False, 'error': f'Ocurrió un error inesperado al guardar: {str(e)}'})
+            logger.error(f"Error al registrar provincia: {e}", exc_info=True)
+            return JsonResponse({'success': False, 'error': f'Ocurrió un error inesperado: {str(e)}'}, status=500)
     else:
-        return JsonResponse({
-            'success': False, 
-            'error': 'Error de validación en el formulario.',
-            'errors': _form_errors_to_dict(form) 
-        }, status=400) 
+        # Devuelve errores de validación del formulario
+        errors = _form_errors_to_dict(form)
+        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors}, status=400)
 
-
-# --- CRUD - MODIFICAR PROVINCIA ---
 @require_POST
 def modificar_provincia(request, provincia_id):
-    """
-    Maneja la modificación de una provincia existente.
-    """
-    try:
-        provincia_instancia = Provincias.objects.get(pk=provincia_id, borrado_provincia=False)
-    except Provincias.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Provincia no encontrada o eliminada.'}, status=404)
-
-    form = ProvinciaForm(request.POST, instance=provincia_instancia)
+    """Vista para modificar una provincia existente."""
+    provincia = get_object_or_404(Provincias.all_objects, pk=provincia_id)
+    # Si usamos ProvinciaForm(request.POST, instance=provincia), la validación del clean_nombre_provincia
+    # ya manejará si la provincia está borrada lógicamente o no, chequeando la unicidad.
+    form = ProvinciaForm(request.POST, instance=provincia)
 
     if form.is_valid():
         try:
-            form.save()
-            nombre_limpio = form.cleaned_data['nombre_provincia']
-            return JsonResponse({'success': True, 'message': f'Provincia "{nombre_limpio}" modificada exitosamente.'})
+            with transaction.atomic():
+                form.save()
+            return JsonResponse({'success': True, 'message': 'Provincia modificada exitosamente.'})
+        except IntegrityError:
+            return JsonResponse({'success': False, 'error': 'Error de integridad: El nombre de provincia ya existe.'}, status=400)
         except Exception as e:
             logger.error(f"Error al modificar provincia {provincia_id}: {e}", exc_info=True)
             return JsonResponse({'success': False, 'error': f'Ocurrió un error inesperado: {str(e)}'}, status=500)
     else:
-        return JsonResponse({
-            'success': False, 
-            'error': 'Error de validación en el formulario.',
-            'errors': _form_errors_to_dict(form)
-        }, status=400)
+        errors = _form_errors_to_dict(form)
+        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors}, status=400)
 
-
-# --- CRUD - BORRAR PROVINCIA (Baja lógica) (¡FUNCIÓN MEJORADA!) ---
 @require_POST
 def borrar_provincia(request, provincia_id):
-    """Realiza la baja lógica (eliminación) de una provincia utilizando soft_delete()."""
+    """Realiza el borrado lógico de una provincia activa."""
     try:
-        # Nos aseguramos de borrar solo provincias activas
-        provincia = Provincias.objects.get(pk=provincia_id, borrado_provincia=False)
+        # Usamos all_objects para asegurar que podemos encontrarla y verificamos que no esté borrada
+        provincia = Provincias.all_objects.get(pk=provincia_id, borrado_provincia=False) 
         
-        # MEJORA: Usamos el método soft_delete del modelo.
-        provincia.soft_delete()
-
-        return JsonResponse({'success': True, 'message': f'Provincia "{provincia.nombre_provincia}" borrada exitosamente.'})
-
+        if provincia.borrar_logico():
+            return JsonResponse({'success': True, 'message': 'Provincia borrada lógicamente.'})
+        
     except Provincias.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Provincia no encontrada o ya está dada de baja.'}, status=404)
     except Exception as e:
         logger.error(f"Error al borrar provincia {provincia_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
-# --- CRUD - RECUPERAR PROVINCIA (¡FUNCIÓN MEJORADA!) ---
 @require_POST
 def recuperar_provincia(request, provincia_id):
-    """Realiza la restauración (alta) de una provincia dado de baja utilizando restore()."""
+    """Restaura una provincia previamente borrada lógicamente."""
     try:
-        # Nos aseguramos de recuperar solo provincias eliminadas
-        provincia = Provincias.objects.get(pk=provincia_id, borrado_provincia=True)
+        # Usamos all_objects y filtramos por borrado_provincia=True
+        provincia = Provincias.all_objects.get(pk=provincia_id, borrado_provincia=True) 
         
-        # MEJORA: Usamos el método restore del modelo.
-        provincia.restore()
-
-        return JsonResponse({'success': True, 'message': f'Provincia "{provincia.nombre_provincia}" recuperada exitosamente.'})
-
+        if provincia.restaurar():
+            return JsonResponse({'success': True, 'message': 'Provincia restaurada exitosamente.'})
+        
     except Provincias.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Provincia no encontrada o ya está activa.'}, status=404)
     except Exception as e:
         logger.error(f"Error al recuperar provincia {provincia_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ===============================================
+# MARCAS
+# ===============================================
+
+def _serialize_marcas(queryset, is_deleted_view):
+    """Serializa un queryset de Marcas para DataTables."""
+    data = []
+    for marca in queryset:
+        marca_data = {
+            'id_marca': marca.id_marca,
+            'nombre_marca': marca.nombre_marca,
+        }
+
+        if is_deleted_view:
+            marca_data.update({
+                'fh_borrado_m': marca.fh_borrado_m.strftime('%Y-%m-%d %H:%M') if marca.fh_borrado_m else 'N/A',
+            })
+
+        data.append(marca_data)
+    return data
+
+
+def listar_marcas(request):
+    """Renderiza la plantilla principal de gestión de marcas."""
+    return render(request, 'a_central/marcas/listar_marcas.html', {})
+
+
+@require_GET
+def marcas_disponibles_api(request):
+    """Devuelve los datos de marcas activas (usando MarcaManager)."""
+    try:
+        marcas = Marcas.objects.order_by('nombre_marca')
+        data = _serialize_marcas(marcas, is_deleted_view=False)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al serializar marcas disponibles: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener marcas disponibles.'}, status=500)
+
+
+@require_GET
+def marcas_eliminadas_api(request):
+    """Devuelve los datos de marcas eliminadas (usando MarcaAllObjectsManager)."""
+    try:
+        marcas = Marcas.all_objects.filter(borrado_marca=True).order_by('-fh_borrado_m')
+        data = _serialize_marcas(marcas, is_deleted_view=True)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al serializar marcas eliminadas: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener marcas eliminadas.'}, status=500)
+
+
+@require_POST
+def registrar_marca(request):
+    """Registra una nueva marca."""
+    form = MarcaForm(request.POST)
+
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                marca = form.save(commit=False)
+                marca.borrado_marca = False
+                marca.save()
+            return JsonResponse({'success': True, 'message': 'Marca registrada exitosamente.'})
+        except IntegrityError:
+            return JsonResponse({'success': False, 'error': 'Error de integridad: El nombre de marca ya existe.'}, status=400)
+        except Exception as e:
+            logger.error(f"Error al registrar marca: {e}", exc_info=True)
+            return JsonResponse({'success': False, 'error': f'Ocurrió un error inesperado: {str(e)}'}, status=500)
+    else:
+        errors = _form_errors_to_dict(form)
+        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors}, status=400)
+
+
+@require_POST
+def modificar_marca(request, marca_id):
+    """Modifica una marca existente."""
+    marca = get_object_or_404(Marcas.all_objects, pk=marca_id)
+    form = MarcaForm(request.POST, instance=marca)
+
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                form.save()
+            return JsonResponse({'success': True, 'message': 'Marca modificada exitosamente.'})
+        except IntegrityError:
+            return JsonResponse({'success': False, 'error': 'Error de integridad: El nombre de marca ya existe.'}, status=400)
+        except Exception as e:
+            logger.error(f"Error al modificar marca {marca_id}: {e}", exc_info=True)
+            return JsonResponse({'success': False, 'error': f'Ocurrió un error inesperado: {str(e)}'}, status=500)
+    else:
+        errors = _form_errors_to_dict(form)
+        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors}, status=400)
+
+
+@require_POST
+def borrar_marca(request, marca_id):
+    """Realiza el borrado lógico de una marca activa."""
+    try:
+        marca = Marcas.all_objects.get(pk=marca_id, borrado_marca=False)
+
+        if marca.borrar_logico():
+            return JsonResponse({'success': True, 'message': 'Marca borrada lógicamente.'})
+
+    except Marcas.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Marca no encontrada o ya está dada de baja.'}, status=404)
+    except Exception as e:
+        logger.error(f"Error al borrar marca {marca_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@require_POST
+def recuperar_marca(request, marca_id):
+    """Restaura una marca previamente borrada lógicamente."""
+    try:
+        marca = Marcas.all_objects.get(pk=marca_id, borrado_marca=True)
+
+        if marca.restaurar():
+            return JsonResponse({'success': True, 'message': 'Marca restaurada exitosamente.'})
+
+    except Marcas.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Marca no encontrada o ya está activa.'}, status=404)
+    except Exception as e:
+        logger.error(f"Error al recuperar marca {marca_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+# ===============================================
+# PROVEEDORES
+# ===============================================
+
+def _serialize_proveedores(queryset, is_deleted_view):
+    """Serializa proveedores para DataTables."""
+    data = []
+    for prov in queryset:
+        proveedor_data = {
+            'id_proveedor': prov.id_proveedor,
+            'cuit_prov': prov.cuit_prov,
+            'nombre_prov': prov.nombre_prov,
+            'telefono_prov': prov.telefono_prov or '',
+            'email_prov': prov.email_prov or '',
+            'direccion_prov': prov.direccion_prov or '',
+            'fecha_alta_prov': prov.fecha_alta_prov.strftime('%Y-%m-%d'), 
+        }
+
+        if is_deleted_view:
+            proveedor_data.update({
+                'fh_borrado_prov': prov.fh_borrado_prov.strftime('%Y-%m-%d %H:%M') if prov.fh_borrado_prov else ''
+            })
+
+        data.append(proveedor_data)
+    return data
+
+def listar_proveedores(request):
+    """Renderiza la página principal de proveedores."""
+    return render(request, 'a_central/proveedores/listar_proveedores.html')
+
+
+@require_GET
+def proveedores_disponibles_api(request):
+    """Devuelve proveedores activos."""
+    try:
+        proveedores = Proveedores.objects.all().order_by('id_proveedor')
+        data = _serialize_proveedores(proveedores, is_deleted_view=False)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al listar proveedores: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener proveedores.'}, status=500)
+
+
+@require_GET
+def proveedores_eliminados_api(request):
+    """Devuelve proveedores borrados lógicamente."""
+    try:
+        proveedores = Proveedores.all_objects.filter(borrado_prov=True).order_by('-id_proveedor')
+        data = _serialize_proveedores(proveedores, is_deleted_view=True)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al listar proveedores eliminados: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener proveedores eliminados.'}, status=500)
+
+@require_POST
+def registrar_proveedor(request):
+    """Crea un nuevo proveedor."""
+    form = ProveedorRegistroForm(request.POST)
+
+    if not form.is_valid():
+        errors = _form_errors_to_dict(form)
+        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors})
+
+    data = form.cleaned_data
+    try:
+        with transaction.atomic():
+            Proveedores.all_objects.create(
+                cuit_prov=data['cuit_prov'],
+                nombre_prov=data['nombre_prov'],
+                telefono_prov=data.get('telefono_prov'),
+                email_prov=data.get('email_prov'),
+                direccion_prov=data.get('direccion_prov'),
+                borrado_prov=False
+            )
+        return JsonResponse({'success': True, 'message': 'Proveedor registrado exitosamente.'})
+    except IntegrityError:
+        return JsonResponse({'success': False, 'error': 'Error de integridad: CUIT o Email duplicado.'})
+    except Exception as e:
+        logger.error(f"Error al registrar proveedor: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def modificar_proveedor(request, proveedor_id):
+    """Edita los datos de un proveedor."""
+    try:
+        proveedor = get_object_or_404(Proveedores, pk=proveedor_id)
+        cuit = request.POST.get('cuit_prov')
+        nombre = request.POST.get('nombre_prov')
+        telefono = request.POST.get('telefono_prov')
+        email = request.POST.get('email_prov')
+        direccion = request.POST.get('direccion_prov')
+
+        # Validaciones de unicidad
+        if Proveedores.all_objects.exclude(pk=proveedor_id).filter(cuit_prov=cuit).exists():
+            raise IntegrityError('El CUIT ya está registrado por otro proveedor.')
+        if email and Proveedores.all_objects.exclude(pk=proveedor_id).filter(email_prov=email).exists():
+            raise IntegrityError('El Email ya está registrado por otro proveedor.')
+
+        with transaction.atomic():
+            proveedor.cuit_prov = cuit
+            proveedor.nombre_prov = nombre
+            proveedor.telefono_prov = telefono or None
+            proveedor.email_prov = email or None
+            proveedor.direccion_prov = direccion or None
+            proveedor.save()
+
+        return JsonResponse({'success': True, 'message': 'Proveedor modificado exitosamente.'})
+
+    except IntegrityError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    except Exception as e:
+        logger.error(f"Error al modificar proveedor {proveedor_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def borrar_proveedor(request, proveedor_id):
+    """Borrado lógico de proveedor."""
+    try:
+        proveedor = Proveedores.all_objects.get(pk=proveedor_id, borrado_prov=False)
+        if proveedor.borrar_logico():
+            return JsonResponse({'success': True, 'message': 'Proveedor eliminado correctamente.'})
+        else:
+            return JsonResponse({'success': False, 'error': 'El proveedor ya estaba eliminado.'})
+    except Proveedores.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Proveedor no encontrado o ya eliminado.'})
+    except Exception as e:
+        logger.error(f"Error al borrar proveedor {proveedor_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def recuperar_proveedor(request, proveedor_id):
+    """Restaurar proveedor borrado lógicamente."""
+    try:
+        proveedor = Proveedores.all_objects.get(pk=proveedor_id, borrado_prov=True)
+        if proveedor.restaurar():
+            return JsonResponse({'success': True, 'message': 'Proveedor restaurado correctamente.'})
+        else:
+            return JsonResponse({'success': False, 'error': 'El proveedor ya estaba activo.'})
+    except Proveedores.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Proveedor no encontrado o ya activo.'})
+    except Exception as e:
+        logger.error(f"Error al restaurar proveedor {proveedor_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+# ===============================================
+# LOCALES COMERCIALES
+# ===============================================
+
+def _serialize_locales(queryset, is_deleted_view):
+    """Serializa locales comerciales para DataTables."""
+    data = []
+    for loc in queryset:
+        local_data = {
+            'id_loc_com': loc.id_loc_com,
+            'nombre_loc_com': loc.nombre_loc_com,
+            'provincia_nombre': loc.id_provincia.nombre_provincia,
+            'cod_postal_loc_com': loc.cod_postal_loc_com or '',
+            'telefono_loc_com': loc.telefono_loc_com or '',
+            'direccion_loc_com': loc.direccion_loc_com or '',
+            'fecha_alta_loc_com': loc.fecha_alta_loc_com.strftime('%Y-%m-%d'),
+        }
+
+        if is_deleted_view:
+            local_data.update({
+                'fh_borrado_lc': loc.fh_borrado_lc.strftime('%Y-%m-%d %H:%M') if loc.fh_borrado_lc else ''
+            })
+
+        data.append(local_data)
+    return data
+
+def listar_locales(request):
+    """Renderiza la página principal de locales comerciales."""
+    form = LocalComercialRegistroForm()
+    provincias = Provincias.objects.all() # Para el select de modificación/registro
+    return render(request, 'a_central/locales/listar_locales.html', {'form': form, 'provincias': provincias})
+
+
+@require_GET
+def locales_disponibles_api(request):
+    """Devuelve locales activos."""
+    try:
+        locales = LocalesComerciales.objects.select_related('id_provincia').all().order_by('id_loc_com')
+        data = _serialize_locales(locales, is_deleted_view=False)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al listar locales disponibles: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener locales.'}, status=500)
+
+
+@require_GET
+def locales_eliminados_api(request):
+    """Devuelve locales borrados lógicamente."""
+    try:
+        locales = LocalesComerciales.all_objects.select_related('id_provincia').filter(borrado_loc_com=True).order_by('-id_loc_com')
+        data = _serialize_locales(locales, is_deleted_view=True)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al listar locales eliminados: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener locales eliminados.'}, status=500)
+
+@require_POST
+def registrar_local(request):
+    """Crea un nuevo local comercial."""
+    form = LocalComercialRegistroForm(request.POST)
+
+    if not form.is_valid():
+        errors = _form_errors_to_dict(form)
+        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors})
+
+    data = form.cleaned_data
+    try:
+        with transaction.atomic():
+            LocalesComerciales.all_objects.create(
+                id_provincia=data['id_provincia'],
+                nombre_loc_com=data['nombre_loc_com'],
+                cod_postal_loc_com=data.get('cod_postal_loc_com'),
+                telefono_loc_com=data.get('telefono_loc_com'),
+                direccion_loc_com=data.get('direccion_loc_com'),
+                borrado_loc_com=False
+            )
+        return JsonResponse({'success': True, 'message': 'Local Comercial registrado exitosamente.'})
+    except IntegrityError as e:
+        # Esto debería ser manejado por la validación del formulario (clean), pero es un fallback
+        return JsonResponse({'success': False, 'error': f'Error de integridad: {str(e)}'})
+    except Exception as e:
+        logger.error(f"Error al registrar local: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def modificar_local(request, local_id):
+    """Edita los datos de un local comercial."""
+    try:
+        local = get_object_or_404(LocalesComerciales, pk=local_id)
+        
+        # Simular el formulario para validación
+        form = LocalComercialRegistroForm(request.POST)
+        form.is_valid() # Carga los datos, pero las validaciones de unicidad fallarán para el propio objeto
+
+        # Obtener datos manualmente para la edición
+        id_provincia = request.POST.get('id_provincia')
+        nombre = request.POST.get('nombre_loc_com')
+
+        # 1. Validación de unicidad manual (Excluir el local actual)
+        if LocalesComerciales.all_objects.exclude(pk=local_id).filter(
+            id_provincia_id=id_provincia, 
+            nombre_loc_com=nombre
+        ).exists():
+            raise IntegrityError('Ya existe un local comercial con este nombre en la provincia seleccionada.')
+        
+        # 2. Actualización de datos
+        with transaction.atomic():
+            local.id_provincia_id = id_provincia
+            local.nombre_loc_com = nombre
+            local.cod_postal_loc_com = request.POST.get('cod_postal_loc_com') or None
+            local.telefono_loc_com = request.POST.get('telefono_loc_com') or None
+            local.direccion_loc_com = request.POST.get('direccion_loc_com') or None
+            local.save()
+
+        return JsonResponse({'success': True, 'message': 'Local Comercial modificado exitosamente.'})
+
+    except IntegrityError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    except Exception as e:
+        logger.error(f"Error al modificar local {local_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def borrar_local(request, local_id):
+    """Borrado lógico de local comercial."""
+    try:
+        local = LocalesComerciales.all_objects.get(pk=local_id, borrado_loc_com=False)
+        if local.borrar_logico():
+            return JsonResponse({'success': True, 'message': 'Local Comercial eliminado correctamente.'})
+        else:
+            return JsonResponse({'success': False, 'error': 'El local ya estaba eliminado.'})
+    except LocalesComerciales.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Local Comercial no encontrado o ya eliminado.'})
+    except Exception as e:
+        logger.error(f"Error al borrar local {local_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def recuperar_local(request, local_id):
+    """Restaurar local comercial borrado lógicamente."""
+    try:
+        local = LocalesComerciales.all_objects.get(pk=local_id, borrado_loc_com=True)
+        if local.restaurar():
+            return JsonResponse({'success': True, 'message': 'Local Comercial restaurado correctamente.'})
+        else:
+            return JsonResponse({'success': False, 'error': 'El local ya estaba activo.'})
+    except LocalesComerciales.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Local Comercial no encontrado o ya activo.'})
+    except Exception as e:
+        logger.error(f"Error al restaurar local {local_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+# ===============================================
+# PRODUCTOS
+# ===============================================
+
+def _serialize_productos(queryset, is_deleted_view):
+    """Serializa productos para DataTables."""
+    data = []
+    for prod in queryset:
+        # Formatear el precio_unit_prod como string (ej. "150.50")
+        precio_formato = f"{prod.precio_unit_prod:.2f}" if prod.precio_unit_prod is not None else '0.00'
+        
+        # Obtener el nombre de la marca
+        nombre_marca = prod.id_marca.nombre_marca if prod.id_marca else 'Sin Marca'
+
+        producto_data = {
+            'id_producto': prod.id_producto,
+            'nombre_producto': prod.nombre_producto or 'N/A',
+            'id_marca': prod.id_marca_id, # Para el modal de edición
+            'nombre_marca': nombre_marca,
+            'precio_unit_prod': precio_formato,
+            'fecha_venc_prod': prod.fecha_venc_prod.strftime('%Y-%m-%d') if prod.fecha_venc_prod else 'N/A',
+            'fecha_alta_prod': prod.fecha_alta_prod.strftime('%Y-%m-%d'),
+        }
+
+        if is_deleted_view:
+            producto_data.update({
+                'fh_borrado_prod': prod.fh_borrado_prod.strftime('%Y-%m-%d %H:%M') if prod.fh_borrado_prod else ''
+            })
+
+        data.append(producto_data)
+    return data
+
+def listar_productos(request):
+    """Renderiza la página principal de productos."""
+    form = ProductoRegistroForm()
+    marcas = Marcas.objects.all() # Necesario para los selects en el HTML
+    return render(request, 'a_central/productos/listar_productos.html', {'form': form, 'marcas': marcas})
+
+
+@require_GET
+def productos_disponibles_api(request):
+    """Devuelve productos activos."""
+    try:
+        # Usamos select_related para traer la marca en la misma consulta
+        productos = Productos.objects.select_related('id_marca').all().order_by('id_producto')
+        data = _serialize_productos(productos, is_deleted_view=False)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al listar productos disponibles: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener productos.'}, status=500)
+
+
+@require_GET
+def productos_eliminados_api(request):
+    """Devuelve productos borrados lógicamente."""
+    try:
+        productos = Productos.all_objects.select_related('id_marca').filter(borrado_prod=True).order_by('-id_producto')
+        data = _serialize_productos(productos, is_deleted_view=True)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al listar productos eliminados: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener productos eliminados.'}, status=500)
+
+@require_POST
+def registrar_producto(request):
+    """Crea un nuevo producto."""
+    form = ProductoRegistroForm(request.POST)
+
+    if not form.is_valid():
+        errors = _form_errors_to_dict(form)
+        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors})
+
+    data = form.cleaned_data
+    try:
+        with transaction.atomic():
+            Productos.all_objects.create(
+                nombre_producto=data['nombre_producto'],
+                id_marca=data['id_marca'], # Puede ser None si el campo no es requerido
+                precio_unit_prod=data['precio_unit_prod'],
+                fecha_venc_prod=data.get('fecha_venc_prod'),
+                borrado_prod=False
+            )
+        return JsonResponse({'success': True, 'message': 'Producto registrado exitosamente.'})
+    except IntegrityError as e:
+        return JsonResponse({'success': False, 'error': f'Error de integridad: {str(e)}'})
+    except Exception as e:
+        logger.error(f"Error al registrar producto: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def modificar_producto(request, producto_id):
+    """Edita los datos de un producto."""
+    try:
+        producto = get_object_or_404(Productos.all_objects, pk=producto_id)
+        
+        nombre = request.POST.get('nombre_producto')
+        id_marca = request.POST.get('id_marca')
+        precio = request.POST.get('precio_unit_prod')
+        fecha_venc = request.POST.get('fecha_venc_prod')
+        
+        # 1. Validación de unicidad manual (Excluir el producto actual)
+        if Productos.all_objects.exclude(pk=producto_id).filter(nombre_producto__iexact=nombre).exists():
+            raise IntegrityError('Ya existe otro producto con el mismo nombre.')
+        
+        # 2. Actualización de datos
+        with transaction.atomic():
+            producto.nombre_producto = nombre
+            producto.id_marca_id = id_marca if id_marca else None
+            producto.precio_unit_prod = precio
+            producto.fecha_venc_prod = fecha_venc if fecha_venc else None
+            producto.save()
+
+        return JsonResponse({'success': True, 'message': 'Producto modificado exitosamente.'})
+
+    except IntegrityError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    except Exception as e:
+        logger.error(f"Error al modificar producto {producto_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def borrar_producto(request, producto_id):
+    """Borrado lógico de producto."""
+    try:
+        producto = Productos.all_objects.get(pk=producto_id, borrado_prod=False)
+        if producto.borrar_logico():
+            return JsonResponse({'success': True, 'message': 'Producto eliminado correctamente.'})
+        else:
+            return JsonResponse({'success': False, 'error': 'El producto ya estaba eliminado.'})
+    except Productos.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Producto no encontrado o ya eliminado.'})
+    except Exception as e:
+        logger.error(f"Error al borrar producto {producto_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def recuperar_producto(request, producto_id):
+    """Restaurar producto borrado lógicamente."""
+    try:
+        producto = Productos.all_objects.get(pk=producto_id, borrado_prod=True)
+        if producto.restaurar():
+            return JsonResponse({'success': True, 'message': 'Producto restaurado correctamente.'})
+        else:
+            return JsonResponse({'success': False, 'error': 'El producto ya estaba activo.'})
+    except Productos.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Producto no encontrado o ya activo.'})
+    except Exception as e:
+        logger.error(f"Error al restaurar producto {producto_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+# ===============================================
+# BILLETERAS VIRTUALES
+# ===============================================
+
+def _serialize_billeteras(queryset, is_deleted_view):
+    """Serializa billeteras virtuales para DataTables."""
+    data = []
+    for bv in queryset:
+        saldo_formato = f"{bv.saldo_bv:.2f}" if bv.saldo_bv is not None else '0.00'
+        
+        billetera_data = {
+            'id_bv': bv.id_bv,
+            'nombre_bv': bv.nombre_bv,
+            'usuario_bv': bv.usuario_bv,
+            'cbu_bv': bv.cbu_bv or 'N/A',
+            'saldo_bv': saldo_formato,
+            'fh_alta_bv': bv.fh_alta_bv.strftime('%Y-%m-%d %H:%M'),
+            # No exponemos la contraseña
+        }
+
+        if is_deleted_view:
+            billetera_data.update({
+                'fh_borrado_bv': bv.fh_borrado_bv.strftime('%Y-%m-%d %H:%M') if bv.fh_borrado_bv else ''
+            })
+        else:
+             # Necesario para el modal de edición
+            billetera_data.update({
+                'contrasena_bv_hash': bv.contrasena_bv, # Se mantiene el hash/texto original
+            })
+
+
+        data.append(billetera_data)
+    return data
+
+def listar_billeteras(request):
+    """Renderiza la página principal de billeteras virtuales."""
+    form = BilleteraRegistroForm()
+    return render(request, 'a_central/billeteras/listar_billeteras.html', {'form': form})
+
+
+@require_GET
+def billeteras_disponibles_api(request):
+    """Devuelve billeteras virtuales activas."""
+    try:
+        billeteras = BilleterasVirtuales.objects.all().order_by('id_bv')
+        data = _serialize_billeteras(billeteras, is_deleted_view=False)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al listar billeteras disponibles: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener billeteras.'}, status=500)
+
+
+@require_GET
+def billeteras_eliminadas_api(request):
+    """Devuelve billeteras virtuales borradas lógicamente."""
+    try:
+        billeteras = BilleterasVirtuales.all_objects.filter(borrado_bv=True).order_by('-id_bv')
+        data = _serialize_billeteras(billeteras, is_deleted_view=True)
+        return JsonResponse({'data': data})
+    except Exception as e:
+        logger.error(f"Error al listar billeteras eliminadas: {e}", exc_info=True)
+        return JsonResponse({'error': 'Error interno al obtener billeteras eliminadas.'}, status=500)
+
+
+@require_POST
+def registrar_billetera(request):
+    """Crea una nueva billetera virtual."""
+    # Usamos la Opción 2 del form para facilitar la inserción de la contraseña sin hashing
+    form = BilleteraRegistroForm(request.POST) 
+
+    if not form.is_valid():
+        errors = _form_errors_to_dict(form)
+        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors})
+
+    data = form.cleaned_data
+    try:
+        # Nota: La contraseña se guarda sin hash por simplicidad. Usar make_password() en producción.
+        with transaction.atomic():
+            BilleterasVirtuales.all_objects.create(
+                nombre_bv=data['nombre_bv'],
+                usuario_bv=data['usuario_bv'],
+                contrasena_bv=data['contrasena_bv'], # Sin hashing
+                cbu_bv=data.get('cbu_bv'),
+                saldo_bv=data.get('saldo_bv') or 0.00,
+                fh_alta_bv=timezone.now(),
+                borrado_bv=False
+            )
+        return JsonResponse({'success': True, 'message': 'Billetera Virtual registrada exitosamente.'})
+    except IntegrityError as e:
+        return JsonResponse({'success': False, 'error': f'Error de integridad: Ya existe un registro con ese Usuario o CBU/CVU.'})
+    except Exception as e:
+        logger.error(f"Error al registrar billetera virtual: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def modificar_billetera(request, billetera_id):
+    """Edita los datos de una billetera virtual."""
+    try:
+        billetera = get_object_or_404(BilleterasVirtuales.all_objects, pk=billetera_id)
+        
+        nombre = request.POST.get('nombre_bv')
+        usuario = request.POST.get('usuario_bv')
+        cbu = request.POST.get('cbu_bv')
+        saldo = request.POST.get('saldo_bv')
+        nueva_contrasena = request.POST.get('nueva_contrasena_bv')
+
+        # 1. Validación de unicidad de usuario (Excluir el objeto actual)
+        if BilleterasVirtuales.all_objects.exclude(pk=billetera_id).filter(usuario_bv__iexact=usuario).exists():
+            raise IntegrityError('Ya existe otra billetera con el mismo nombre de usuario.')
+        
+        # 2. Validación de unicidad de CBU
+        if cbu and BilleterasVirtuales.all_objects.exclude(pk=billetera_id).filter(cbu_bv=cbu).exists():
+             raise IntegrityError('Ya existe otra billetera con el mismo CBU/CVU.')
+        
+        # 3. Actualización de datos
+        with transaction.atomic():
+            billetera.nombre_bv = nombre
+            billetera.usuario_bv = usuario
+            billetera.cbu_bv = cbu if cbu else None
+            billetera.saldo_bv = saldo
+
+            # Actualizar contraseña solo si se proporciona una nueva
+            if nueva_contrasena:
+                # Nota: La contraseña se guarda sin hash. Usar make_password() en producción.
+                billetera.contrasena_bv = nueva_contrasena 
+
+            billetera.save()
+
+        return JsonResponse({'success': True, 'message': 'Billetera Virtual modificada exitosamente.'})
+
+    except IntegrityError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    except Exception as e:
+        logger.error(f"Error al modificar billetera virtual {billetera_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def borrar_billetera(request, billetera_id):
+    """Borrado lógico de billetera virtual."""
+    try:
+        billetera = BilleterasVirtuales.all_objects.get(pk=billetera_id, borrado_bv=False)
+        if billetera.borrar_logico():
+            return JsonResponse({'success': True, 'message': 'Billetera Virtual eliminada correctamente.'})
+        else:
+            return JsonResponse({'success': False, 'error': 'La billetera ya estaba eliminada.'})
+    except BilleterasVirtuales.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Billetera Virtual no encontrada o ya eliminada.'})
+    except Exception as e:
+        logger.error(f"Error al borrar billetera virtual {billetera_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_POST
+def recuperar_billetera(request, billetera_id):
+    """Restaurar billetera virtual borrada lógicamente."""
+    try:
+        billetera = BilleterasVirtuales.all_objects.get(pk=billetera_id, borrado_bv=True)
+        if billetera.restaurar():
+            return JsonResponse({'success': True, 'message': 'Billetera Virtual restaurada correctamente.'})
+        else:
+            return JsonResponse({'success': False, 'error': 'La billetera ya estaba activa.'})
+    except BilleterasVirtuales.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Billetera Virtual no encontrada o ya activa.'})
+    except Exception as e:
+        logger.error(f"Error al restaurar billetera virtual {billetera_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})

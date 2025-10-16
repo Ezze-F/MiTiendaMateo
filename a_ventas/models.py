@@ -7,21 +7,14 @@ from a_cajas.models import Cajas
 
 
 class Ventas(models.Model):
-    # ID_Venta INT AUTO_INCREMENT PRIMARY KEY
+
     id_venta = models.AutoField(db_column='ID_Venta', primary_key=True)
-    # ID_Loc_Com INT NOT NULL (FK a LocalesComerciales)
     id_loc_com = models.ForeignKey(LocalesComerciales, models.DO_NOTHING, db_column='ID_Loc_Com', verbose_name='Local Comercial')
-    # ID_Caja INT (FK a Cajas. Es NULLable en SQL)
     id_caja = models.ForeignKey(Cajas, models.DO_NOTHING, db_column='ID_Caja', blank=True, null=True, verbose_name='Caja')
-    # ID_Empleado INT (FK a Empleados)
     id_empleado = models.ForeignKey(Empleados, models.DO_NOTHING, db_column='ID_Empleado', verbose_name='Empleado Vendedor')
-    # FH_Venta DATETIME NOT NULL
     fh_venta = models.DateTimeField(db_column='FH_Venta')
-    # Total_Venta DECIMAL(10, 2) NOT NULL
     total_venta = models.DecimalField(db_column='Total_Venta', max_digits=10, decimal_places=2)
-    # Borrado_Venta BOOLEAN NOT NULL DEFAULT FALSE
     borrado_venta = models.BooleanField(db_column='Borrado_Venta', default=False)
-    # FH_Borrado_Venta DATETIME DEFAULT NULL
     fh_borrado_venta = models.DateTimeField(db_column='FH_Borrado_Venta', blank=True, null=True)
 
     class Meta:

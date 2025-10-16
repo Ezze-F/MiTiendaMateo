@@ -122,3 +122,29 @@ h2 {
     color: #383d41; /* Gris oscuro */
     border: 1px solid #d6d8db;
 }
+
+.password-toggle-container {
+    /* Usamos Flexbox para alinear o Relative para posicionar el ícono */
+    position: relative;
+    display: flex; /* Opcional, dependiendo de cómo quieras que se vea */
+    align-items: center;
+}
+
+.password-toggle-container input[type="password"], 
+.password-toggle-container input[type="text"] {
+    /* Ocupar todo el ancho disponible */
+    width: 100%;
+    /* Dejar espacio a la derecha para el ícono */
+    padding-right: 40px; 
+}
+
+.password-toggle-icon {
+    position: absolute; /* Posicionamiento relativo al contenedor */
+    right: 10px; /* Distancia desde el borde derecho */
+    top: 50%;
+    transform: translateY(-50%); /* Centrar verticalmente */
+    cursor: pointer; /* Indica que es interactivo */
+    font-size: 1.2em;
+    user-select: none; /* Previene la selección de texto del ícono */
+    color: #888; /* Color del ícono */
+}
