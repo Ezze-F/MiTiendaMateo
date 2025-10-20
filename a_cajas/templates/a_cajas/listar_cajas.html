@@ -15,8 +15,9 @@
     <!-- Botón para Abrir el Modal de Registro -->
     <div class="row mb-3">
         <div class="col-12">
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrarCajaModal">
-                Registrar caja
+            <!-- Se recomienda usar un color que destaque, como 'success' para añadir -->
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#registrarCajaModal">
+                <i class="fas fa-plus-circle me-2"></i> Registrar caja
             </button>
         </div>
     </div>
@@ -29,7 +30,7 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="eliminados-tab" data-bs-toggle="tab" data-bs-target="#cajasEliminadasTab" type="button" role="tab" aria-controls="cajasEliminadasTab" aria-selected="false">Cajas eliminadas</button>
         </li>
-        <!-- NUEVA PESTAÑA DE ARQUEO -->
+        <!-- PESTAÑA DE ARQUEO -->
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="arqueos-tab" data-bs-toggle="tab" data-bs-target="#arqueoCajasTab" type="button" role="tab" aria-controls="arqueoCajasTab" aria-selected="false">Historial de Arqueos</button>
         </li>
@@ -44,6 +45,7 @@
                     <div class="card shadow mb-4">
                         <div class="card-body">
                             <div class="table-responsive">
+                                <!-- ID usado por DataTables en cajas.js -->
                                 <table id="dataTableCajasDisponibles" class="table table-striped table-bordered text-center" width="100%">
                                     <thead>
                                         <tr>
@@ -72,6 +74,7 @@
                     <div class="card shadow mb-4">
                         <div class="card-body">
                             <div class="table-responsive">
+                                <!-- ID usado por DataTables en cajas.js -->
                                 <table id="dataTableCajasEliminadas" class="table table-striped table-bordered text-center" width="100%">
                                     <thead>
                                         <tr>
@@ -93,7 +96,7 @@
             </div>
         </div>
 
-        <!-- NUEVA PESTAÑA: HISTORIAL DE ARQUEOS -->
+        <!-- PESTAÑA: HISTORIAL DE ARQUEOS (COLUMNAS ACTUALIZADAS) -->
         <div class="tab-pane fade" id="arqueoCajasTab" role="tabpanel" aria-labelledby="arqueos-tab">
             <div class="row mt-3">
                 <div class="col-12">
@@ -101,19 +104,21 @@
                         
                         <div class="card-body">
                             <div class="table-responsive">
+                                <!-- ID usado por DataTables en cajas.js -->
                                 <table id="dataTableArqueos" class="table table-striped table-bordered text-center" width="100%">
                                     <thead>
                                         <tr>
                                             <th class="d-none">ID</th>
                                             <th class="text-center">Local</th>
-                                            <th class="text-center">N° Caja</th>
-                                            <th class="text-center">Apertura</th>
-                                            <th class="text-center">Cierre</th>
-                                            <th class="text-center">Inicial (Físico)</th>
-                                            <th class="text-center">Final (Físico)</th>
+                                            <th class="text-center">Caja</th>
+                                            <th class="text-center">Empleado de apertura</th>
+                                            <th class="text-center">Fecha y hora de apertura</th>
+                                            <th class="text-center">Efectivo inicial</th>
+                                            <th class="text-center">Empleado de cierre</th>
+                                            <th class="text-center">Fecha y hora de cierre</th>
+                                            <th class="text-center">Efectivo final</th>
                                             <th class="text-center">Ingresos BV</th>
                                             <th class="text-center">Egresos BV</th>
-                                            <th class="text-center">Diferencia</th>
                                             <th class="text-center">Acciones</th>
                                         </tr>
                                     </thead>
@@ -138,7 +143,8 @@
 <div class="modal fade" id="registrarCajaModal" tabindex="-1" aria-labelledby="registrarCajaModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <!-- La acción usará el namespace correcto, pero será manejada por JS vía AJAX -->
+            <!-- ID 'registrarCajaForm' es manejado por JS -->
+            <!-- La acción se define aquí para el caso de no usar AJAX, aunque JS lo sobrescriba -->
             <form id="registrarCajaForm" method="post" action="{% url 'a_cajas:registrar_caja' %}">
                 {% csrf_token %}
                 <div class="modal-header">
@@ -146,11 +152,12 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- ID 'form-error-alerts' es manejado por JS para errores -->
                     <div id="form-error-alerts" class="alert alert-danger d-none" role="alert">
                         <strong>¡Error!</strong> Revisa los campos ingresados.
                     </div>
                     
-                    <!-- Renderizado de campos del formulario CajaForm -->
+                    <!-- Campos del formulario -->
                     <div class="mb-3">
                         {{ form.id_loc_com.label_tag }}
                         {{ form.id_loc_com }}
@@ -160,7 +167,7 @@
                     <div class="mb-3">
                         {{ form.numero_caja.label_tag }}
                         {{ form.numero_caja }}
-                        <div class="invalid-feedback" id="error-numero_caja"></div>
+                        <div class="invalid-feedback" id="error-numero_caja_registro"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -176,56 +183,165 @@
 <div class="modal fade" id="modificarCajaModal" tabindex="-1" aria-labelledby="modificarCajaModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <!-- La acción será seteada por JS con el ID de la caja -->
-            <form id="modificarCajaForm" method="post">
+            <!-- Refactorizado: Se eliminó la iteración de 'form' y se usaron inputs explícitos para mayor control por JS -->
+            <form id="modificarCajaForm" method="post" action="">
                 {% csrf_token %}
+                <!-- ID 'modificar_id_caja' usado por JS para inyectar el ID de la caja a modificar -->
                 <input type="hidden" id="modificar_id_caja" name="id_caja">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">Modificar caja</h5>
+                    <h5 class="modal-title" id="modificarCajaModalLabel">Modificar caja</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- ID 'modificar-error-alert' es manejado por JS para errores -->
                     <div id="modificar-error-alert" class="alert alert-danger d-none" role="alert"></div>
                     
-                    <!-- 
-                        Renderizamos los campos del formulario. 
-                        En este punto, el formulario 'form' en el contexto es un formulario vacío, 
-                        pero sirve como estructura para que JS inyecte los valores.
-                        La lógica de forms.py asegura que solo se muestren 'local_readonly' y 'numero_caja'.
-                    -->
-                    {% for field in form %}
-                        {% if field.name == 'local_readonly' or field.name == 'numero_caja' %}
-                            <div class="mb-3">
-                                {{ field.label_tag }}
-                                <!-- Se usa un div para asegurar que el campo se muestre, 
-                                     ya que su valor será rellenado por JS al abrir el modal. -->
-                                {{ field }}
-                                {% for error in field.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                        <!-- El campo id_loc_com (oculto en forms.py para edición) se maneja automáticamente
-                             ya que solo se incluyen 'local_readonly' y 'numero_caja' en el loop visible. 
-                             El campo oculto se deja fuera para ser inyectado por JS o se asume su manejo.
-                             Para simplicidad, lo incluimos explícitamente si es oculto. -->
-                        {% if field.is_hidden %}
-                            {{ field }}
-                        {% endif %}
-                    {% endfor %}
-                    
-                    <!-- NOTA: JS debe ser capaz de:
-                         1. Establecer el valor inicial de local_readonly.
-                         2. Establecer el valor de numero_caja.
-                         3. Establecer el valor del campo oculto id_loc_com.
-                         4. Actualizar la acción del formulario.
-                    -->
+                    <!-- Campo de Local (Solo lectura, poblado por JS) -->
+                    <div class="mb-3">
+                        <label for="modificar_local_nombre" class="form-label">Local</label>
+                        <!-- Usamos un input normal, no un campo del form de Django -->
+                        <input type="text" class="form-control" id="modificar_local_nombre" readonly>
+                    </div>
+
+                    <!-- Campo de Número de Caja (Poblado/Validado por JS y con error específico) -->
+                    <div class="mb-3">
+                        <label for="modificar_numero_caja_input" class="form-label">Número de caja</label>
+                        <!-- name="numero_caja" es crucial para el backend -->
+                        <input type="number" class="form-control" id="modificar_numero_caja_input" name="numero_caja" required min="1">
+                        <div class="invalid-feedback" id="error-numero_caja_modificar"></div>
+                    </div>
 
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                     <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========================= MODALES PARA ARQUEO ========================= -->
+
+<!-- Modal de Apertura de Caja (ARQUEO INICIAL) -->
+<div class="modal fade" id="abrirCajaModal" tabindex="-1" aria-labelledby="abrirCajaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- ID 'abrirCajaForm' es manejado por JS -->
+            <form id="abrirCajaForm" method="post" action="">
+                {% csrf_token %}
+                <!-- ID 'abrir_id_caja' usado por JS para inyectar el ID de la caja -->
+                <input type="hidden" id="abrir_id_caja" name="id_caja">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="abrirCajaModalLabel">Apertura de Caja</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- ID 'abrir-error-alert' es manejado por JS para errores -->
+                    <div id="abrir-error-alert" class="alert alert-danger d-none" role="alert"></div>
+
+                    <!-- Campos de solo lectura inyectados por JS -->
+                    <div class="mb-3">
+                        <label class="form-label">Local</label>
+                        <input type="text" class="form-control" id="abrir_local" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Caja</label>
+                        <input type="text" class="form-control" id="abrir_numero_caja" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Fecha y hora de Apertura</label>
+                        <input type="text" class="form-control" id="abrir_fecha_hora" name="fecha_hora_apertura" readonly>
+                    </div>
+
+                    <!-- Input de Efectivo Inicial (Físico) - Agregado step="0.01" y min="0" -->
+                    <div class="mb-3">
+                        <label for="abrir_efectivo_inicial" class="form-label">Efectivo inicial (Físico)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="abrir_efectivo_inicial" name="efectivo_inicial" required>
+                        <div class="invalid-feedback" id="error-efectivo_inicial_apertura"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Confirmar Apertura</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cierre de Caja (ARQUEO FINAL) -->
+<div class="modal fade" id="cerrarCajaModal" tabindex="-1" aria-labelledby="cerrarCajaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- ID 'cerrarCajaForm' es manejado por JS -->
+            <form id="cerrarCajaForm" method="post" action="">
+                {% csrf_token %}
+                <!-- IDs 'cerrar_id_arqueo' y 'cerrar_id_caja' usados por JS -->
+                <input type="hidden" id="cerrar_id_arqueo" name="id_arqueo"> <!-- ID del Arqueo Abierto -->
+                <input type="hidden" id="cerrar_id_caja" name="id_caja"> <!-- ID de la Caja -->
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cerrarCajaModalLabel">Cierre de Caja (Arqueo Final)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- ID 'cerrar-error-alert' es manejado por JS para errores -->
+                    <div id="cerrar-error-alert" class="alert alert-danger d-none" role="alert"></div>
+                    
+                    <!-- Campos de solo lectura inyectados por JS -->
+                    <div class="mb-3">
+                        <label class="form-label">Local</label>
+                        <input type="text" class="form-control" id="cerrar_local" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Caja</label>
+                        <input type="text" class="form-control" id="cerrar_numero_caja" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Empleado Apertura/Cierre</label>
+                        <input type="text" class="form-control" id="cerrar_empleado" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Efectivo inicial (Apertura)</label>
+                        <input type="text" class="form-control" id="cerrar_efectivo_inicial_readonly" readonly>
+                        <!-- Hidden input para enviar el valor inicial al backend -->
+                        <input type="hidden" id="cerrar_efectivo_inicial" name="efectivo_inicial_apertura">
+                    </div>
+
+                    <!-- Input de Efectivo Final (Físico) - Agregado step="0.01" y min="0" -->
+                    <div class="mb-3">
+                        <label for="cerrar_efectivo_final" class="form-label">Efectivo final (Físico, a ingresar)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="cerrar_efectivo_final" name="efectivo_final" required>
+                        <div class="invalid-feedback" id="error-efectivo_final"></div>
+                    </div>
+
+                    <!-- Input de Ingresos por Billeteras Virtuales - Agregado step="0.01" y min="0" -->
+                    <div class="mb-3">
+                        <label for="cerrar_ingresos_bv" class="form-label">Ingresos por BV (Billeteras Virtuales)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="cerrar_ingresos_bv" name="ingresos_bv" value="0.00" required>
+                        <div class="invalid-feedback" id="error-ingresos_bv"></div>
+                    </div>
+
+                    <!-- Input de Egresos por Billeteras Virtuales - Agregado step="0.01" y min="0" -->
+                    <div class="mb-3">
+                        <label for="cerrar_egresos_bv" class="form-label">Egresos por BV (Billeteras Virtuales)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="cerrar_egresos_bv" name="egresos_bv" value="0.00" required>
+                        <div class="invalid-feedback" id="error-egresos_bv"></div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <!-- Se usa color 'danger' para indicar la acción final de cierre -->
+                    <button type="submit" class="btn btn-danger">Confirmar Cierre</button>
                 </div>
             </form>
         </div>
@@ -238,19 +354,21 @@
 {% block scripts %}
 <script>
 // Objeto global para almacenar las URLs de la aplicación, usando el namespace 'a_cajas'
+// La estructura de este objeto es CRÍTICA para el funcionamiento de cajas.js
 window.AppUrls = {
-    // URLs de Acciones (necesitan caja_id)
-    // Se usa el reemplazo de /0/ por / para manejar los IDs en JS
+    // URLs de Acciones (necesitan caja_id o arqueo_id)
+    // Se usa el reemplazo de /0/ por / para manejar los IDs en JS. 
+    // ¡Asegúrate de que estas URLs coincidan con tus patrones de Django!
     abrirCaja: "{% url 'a_cajas:abrir_caja' caja_id=0 %}".replace('/0/', '/'),
+    // Nota: Aunque el formulario usa id_arqueo, la URL se construye con caja_id=0 para el placeholder.
     cerrarCaja: "{% url 'a_cajas:cerrar_caja' caja_id=0 %}".replace('/0/', '/'),
     modificarCaja: "{% url 'a_cajas:modificar_caja' caja_id=0 %}".replace('/0/', '/'),
     borrarCaja: "{% url 'a_cajas:borrar_caja' caja_id=0 %}".replace('/0/', '/'),
     recuperarCaja: "{% url 'a_cajas:recuperar_caja' caja_id=0 %}".replace('/0/', '/'),
     
-    // URLs de API 
+    // URLs de API (endpoints de DataTables)
     apiCajasDisponibles: "{% url 'a_cajas:cajas_disponibles_api' %}", 
     apiCajasEliminadas: "{% url 'a_cajas:cajas_eliminadas_api' %}", 
-    // URL para obtener el historial de arqueos
     apiArqueos: "{% url 'a_cajas:arqueos_api' %}", 
 
     // URL para el registro del formulario (manejado por JS)
@@ -259,5 +377,8 @@ window.AppUrls = {
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Asegúrate de que el archivo cajas.js esté ubicado en tu carpeta static/a_cajas/js/ -->
+<!-- Incluir FontAwesome para que se vean los íconos si no está incluido en base.html -->
+<!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> -->
 <script src="{% static 'a_cajas/js/cajas.js' %}"></script>
 {% endblock %}
