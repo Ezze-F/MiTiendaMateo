@@ -12,6 +12,8 @@
 
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.0.7/css/dataTables.dataTables.min.css"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     
     {% block styles %}
     {% endblock %}
@@ -73,7 +75,8 @@
                     <li class="has-submenu">
                         <a href="#" class="submenu-toggle"> Stock <i class="fas fa-chevron-right submenu-arrow"></i></a>
                         <ul class="submenu">
-                            <li><a href="#"> Ver stock </a></li>
+                            <li><a href="{% url 'a_stock:lista_stock' %}"> Ver stock </a></li>
+                            <li><a href="{% url 'a_stock:registrar_observacion' %}" class="nav-link">Observaciones</a></li>
                             <li><a href="{% url 'a_central:listar_marcas' %}"> Marcas </a></li>
                             <li><a href="{% url 'a_central:listar_productos' %}"> Productos </a></li>
                             <li><a href="{% url 'a_central:listar_proveedores' %}"> Proveedores </a></li>
@@ -145,6 +148,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <script src="{% static 'js/base.js' %}"></script>
+
+    
     
     <script>
         const logoutLink = document.getElementById('logout-link');

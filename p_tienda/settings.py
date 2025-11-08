@@ -43,8 +43,8 @@ INSTALLED_APPS = [
     'a_central',
     'a_cajas',
     'a_compras',
-    'a_stock',
     'a_ventas',
+    'a_stock.apps.AStockConfig',
 ]
 
 MIDDLEWARE = [
@@ -84,9 +84,9 @@ WSGI_APPLICATION = 'p_tienda.wsgi.application'
 DATABASES = { # Configuración de la BD
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'kioscomateo',
+        'NAME': 'kiosco_mateo',
         'USER': 'root',
-        'PASSWORD': 'root',
+        'PASSWORD': '1234',
         'HOST': 'localhost',
         'PORT': '3306',
     }

@@ -47,3 +47,58 @@ class Stock(models.Model):
         db_table = 'Stock'
         verbose_name_plural = 'Stock por Local Comercial'
         unique_together = (('id_producto', 'id_loc_com'),)
+
+from django.db import models
+
+class ObservacionStock(models.Model):
+    producto = models.CharField(max_length=100)
+    motivo = models.CharField(max_length=200)
+    descripcion = models.TextField(blank=True, null=True)
+    fecha = models.DateField()
+    cantidad = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"{self.producto} - {self.motivo}"
+    
+
+
+#--------------------------------
+# Modelos para lotes y vencimientos
+#--------------------------------
+
+from django.db import models
+from django.utils import timezone
+from a_central.models import Productos, LocalesComerciales
+
+
+class LoteProducto(models.Model):
+    id_lote = models.AutoField(primary_key=True)
+    id_producto = models.ForeignKey(Productos, on_delete=models.CASCADE)
+    id_loc_com = models.ForeignKey(LocalesComerciales, on_delete=models.CASCADE)
+    numero_lote = models.CharField(max_length=30, unique=True, editable=False)
+    cantidad = models.PositiveIntegerField()
+    fecha_ingreso = models.DateField(default=timezone.now)
+    fecha_vencimiento = models.DateField()
+    activo = models.BooleanField(default=True)
+    borrado_logico = models.BooleanField(default=False)  # 👈 NUEVO CAMPO
+
+    def save(self, *args, **kwargs):
+        if not self.numero_lote:
+            prefix = f"P{self.id_producto.id_producto:03d}"
+            fecha = timezone.now().strftime("%Y%m%d")
+            cantidad_existente = LoteProducto.objects.filter(
+                id_producto=self.id_producto,
+                fecha_ingreso__date=timezone.now().date()
+            ).count() + 1
+            self.numero_lote = f"{prefix}-{fecha}-{cantidad_existente:03d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.numero_lote} - {self.id_producto.nombre_producto}"
+
+    class Meta:
+        db_table = "Lotes_Productos"
+        verbose_name_plural = "Lotes de Productos"
+
+
+

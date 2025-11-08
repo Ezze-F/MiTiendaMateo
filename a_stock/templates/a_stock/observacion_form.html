@@ -1,0 +1,126 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+{% block title %}Observaciones de Stock{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">Gestión de Observaciones de Stock</h2>
+
+    <!-- Formulario -->
+    <div class="card shadow-lg p-4 mb-4">
+        <h5 class="mb-3">
+            {% if observacion %}Editar observación{% else %}Registrar nueva observación{% endif %}
+        </h5>
+        <form method="POST">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-bold">Producto</label>
+                    <input type="text" name="producto" class="form-control"
+                           value="{{ observacion.producto|default_if_none:'' }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-bold">Motivo</label>
+                    <input type="text" name="motivo" class="form-control"
+                           value="{{ observacion.motivo|default_if_none:'' }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-bold">Cantidad</label>
+                    <input type="number" name="cantidad" class="form-control"
+                           value="{{ observacion.cantidad|default_if_none:'' }}" min="1" required>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Fecha</label>
+                    <input type="date" name="fecha" class="form-control"
+                           value="{{ observacion.fecha|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Descripción</label>
+                    <textarea name="descripcion" class="form-control" rows="2">{{ observacion.descripcion }}</textarea>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="fa-solid fa-save me-2"></i>
+                    {% if observacion %}Actualizar{% else %}Guardar{% endif %}
+                </button>
+                {% if observacion %}
+                <a href="{% url 'a_stock:registrar_observacion' %}" class="btn btn-secondary ms-2">
+                    <i class="fa-solid fa-rotate-left me-2"></i>Cancelar edición
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="card shadow-sm p-3 mb-4">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Producto</label>
+                <input type="text" name="producto" class="form-control" value="{{ producto_filtro }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Desde</label>
+                <input type="date" name="desde" class="form-control" value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Hasta</label>
+                <input type="date" name="hasta" class="form-control" value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-2 text-end">
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="fa-solid fa-filter me-2"></i>Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card shadow-lg p-4">
+        <h5 class="mb-3">Lista de Observaciones</h5>
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Producto</th>
+                    <th>Motivo</th>
+                    <th>Descripción</th>
+                    <th>Cantidad</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for obs in observaciones %}
+                <tr>
+                    <td>{{ obs.fecha }}</td>
+                    <td>{{ obs.producto }}</td>
+                    <td>{{ obs.motivo }}</td>
+                    <td>{{ obs.descripcion|default:"-" }}</td>
+                    <td class="text-center">{{ obs.cantidad }}</td>
+                    <td class="text-center">
+                        <a href="{% url 'a_stock:editar_observacion' obs.id %}" class="btn btn-warning btn-sm me-2" title="Editar">
+                            <i class="fa-solid fa-pen"></i>
+                        </a>
+                        <a href="{% url 'a_stock:eliminar_observacion' obs.id %}"
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('¿Seguro que desea eliminar esta observación?');"
+                           title="Eliminar">
+                            <i class="fa-solid fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No hay observaciones registradas</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
