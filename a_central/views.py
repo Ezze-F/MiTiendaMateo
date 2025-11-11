@@ -946,6 +946,8 @@ def registrar_producto(request):
                 id_marca=data['id_marca'],
                 precio_unit_prod=data['precio_unit_prod'],
                 fecha_venc_prod=data.get('fecha_venc_prod'),
+                tipo_unidad=data['tipo_unidad'],
+                cantidad_por_pack=data.get('cantidad_por_pack'),
                 borrado_prod=False
             )
 

@@ -61,9 +61,15 @@
                                         <td>{{ compra.legajo_empleado.nombre_emp }}</td>
                                         <td>
                                             {% for detalle in compra.detallescompras_set.all %}
-                                                {{ detalle.id_producto.nombre_producto }} (x{{ detalle.cantidad }}){% if not forloop.last %}, {% endif %}
+                                                {{ detalle.id_producto.nombre_producto }}
+                                                {% if detalle.id_producto.id_marca %}
+                                                    - {{ detalle.id_producto.id_marca.nombre_marca }}
+                                                {% endif %}
+                                                (x{{ detalle.cantidad }})
+                                                {% if not forloop.last %}, {% endif %}
                                             {% endfor %}
                                         </td>
+
                                         <td>{{ compra.fecha_hora_compra|date:"d/m/Y H:i" }}</td>
                                         <td>${{ compra.monto_total }}</td>
                                         <td>{{ compra.situacion_compra }}</td>

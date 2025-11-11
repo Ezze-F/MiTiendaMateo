@@ -342,9 +342,30 @@ class Productos(models.Model):
     nombre_producto = models.CharField(db_column='Nombre_Producto', max_length=150, blank=True, null=True)
     precio_unit_prod = models.DecimalField(db_column='Precio_Unit_Prod', max_digits=10, decimal_places=2, blank=True, null=True)
     fecha_venc_prod = models.DateField(db_column='Fecha_Venc_Prod', blank=True, null=True)
-    borrado_prod = models.BooleanField(db_column='Borrado_Prod', default=False) 
+
+    # 🔹 NUEVOS CAMPOS
+    TIPO_UNIDAD_CHOICES = [
+        ('unidad', 'Unidad'),
+        ('pack', 'Pack'),
+        ('kilo', 'Kilo'),
+        ('litro', 'Litro'),
+        ('docena', 'Docena'),
+    ]
+    tipo_unidad = models.CharField(
+        db_column='Tipo_Unidad',
+        max_length=20,
+        choices=TIPO_UNIDAD_CHOICES,
+        default='unidad'
+    )
+    cantidad_por_pack = models.PositiveIntegerField(
+        db_column='Cantidad_Por_Pack',
+        blank=True,
+        null=True,
+        help_text="Solo completar si el producto viene en pack (ej. 6 latas)"
+    )
+
+    borrado_prod = models.BooleanField(db_column='Borrado_Prod', default=False)
     fh_borrado_prod = models.DateTimeField(db_column='FH_Borrado_Prod', blank=True, null=True)
-    # Agregamos la fecha de alta para consistencia con DataTables/CRUD
     fecha_alta_prod = models.DateTimeField(db_column='Fecha_Alta_Prod', auto_now_add=True)
 
     # Managers
@@ -356,10 +377,13 @@ class Productos(models.Model):
         verbose_name_plural = 'Productos'
 
     def __str__(self):
-        return self.nombre_producto or f"Producto {self.id_producto}"
+        """Muestra el nombre con su tipo de unidad (ej: 'Cerveza Salta (Pack x6)')"""
+        if self.tipo_unidad == 'pack' and self.cantidad_por_pack:
+            return f"{self.nombre_producto} (Pack x{self.cantidad_por_pack})"
+        else:
+            return f"{self.nombre_producto} ({self.get_tipo_unidad_display()})"
 
     def borrar_logico(self):
-        """Marca el producto como borrado (borrado_prod=True)."""
         if not self.borrado_prod:
             self.borrado_prod = True
             self.fh_borrado_prod = timezone.now()
@@ -368,7 +392,6 @@ class Productos(models.Model):
         return False
 
     def restaurar(self):
-        """Restaura el producto (borrado_prod=False)."""
         if self.borrado_prod:
             self.borrado_prod = False
             self.fh_borrado_prod = None

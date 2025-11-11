@@ -1,0 +1,117 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2>{{ page_title }}</h2>
+            
+            <form id="form-venta" method="post">
+                {% csrf_token %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Local Comercial</label>
+                        <select name="id_loc_com" class="form-control" id="id_loc_com" required>
+                            <option value="">Seleccionar local...</option>
+                            {% for local in locales %}
+                                <option value="{{ local.id_loc_com }}">{{ local.nombre_loc_com }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label">Caja</label>
+                        <select name="id_caja" class="form-control" id="id_caja" required>
+                            <option value="">Seleccionar caja...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label">Empleado</label>
+                        <select name="id_empleado" class="form-control" id="id_empleado" required>
+                            <option value="">Seleccionar empleado...</option>
+                            {% for empleado in empleados %}
+                                <option value="{{ empleado.id_empleado }}">
+                                    {{ empleado.nombre_emp }} {{ empleado.apellido_emp }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Búsqueda de productos -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="buscar_producto" 
+                                   placeholder="Buscar producto por nombre...">
+                            <button class="btn btn-outline-secondary" type="button" id="btn-buscar">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultados de búsqueda -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div id="resultados-busqueda" class="list-group" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Detalles de la venta -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h5>Productos a vender</h5>
+                        <div id="detalles-venta" class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Cantidad</th>
+                                        <th>Precio Unit.</th>
+                                        <th>Subtotal</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-detalles">
+                                    <!-- Los detalles se agregarán aquí dinámicamente -->
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                        <td id="total-venta">$0.00</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Registrar Venta
+                        </button>
+                        <a href="{% url 'a_ventas:listar_ventas' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Campo oculto para almacenar detalles -->
+                <div id="detalles-hidden"></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'a_ventas/js/ventas.js' %}"></script>
+{% endblock %}

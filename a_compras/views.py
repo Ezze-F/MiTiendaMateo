@@ -94,15 +94,24 @@ def eliminar_compra(request, pk):
     return redirect('a_compras:listar_compras')
 
 def detalle_compra(request, pk):
-    """
-    Muestra los detalles completos de una compra
-    """
     compra = get_object_or_404(Compras, pk=pk)
-    detalles = DetallesCompras.objects.filter(id_compra=compra).select_related('id_producto')
-    
+    detalles_queryset = DetallesCompras.objects.filter(
+        id_compra=compra
+    ).select_related('id_producto', 'id_producto__id_marca')
+
+    # Convertir queryset a lista real
+    detalles = list(detalles_queryset)
+
+    # Calcular subtotal y total
+    for d in detalles:
+        d.subtotal = d.cantidad * d.precio_unitario
+
+    total = sum(d.subtotal for d in detalles)
+
     return render(request, 'a_compras/detalle_compra.html', {
         'compra': compra,
         'detalles': detalles,
+        'total': total,
     })
 
 #PEDIDOS 

@@ -29,6 +29,7 @@ urlpatterns = [
     path('stock/', include('a_stock.urls', namespace='a_stock')),
     path('cuenta/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('compras/', include(('a_compras.urls', 'a_compras'), namespace='a_compras')),
+    path('ventas/', include('a_ventas.urls', namespace='a_ventas')),
 ]
 
 # En modo de desarrollo, sirve los archivos estáticos.

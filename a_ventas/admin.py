@@ -33,9 +33,9 @@ class VentasAdmin(admin.ModelAdmin):
         'id_empleado', 
         'borrado_venta'     # CORREGIDO: Filtramos por 'borrado_venta' ya que 'situacion_vta' no existe.
     ]
-    search_fields = ['id_venta', 'id_empleado__apellido', 'id_loc_com__nombre']
+    search_fields = ['id_venta', 'id_empleado__apellido']
     
-    raw_id_fields = ['id_loc_com', 'id_empleado']
+    raw_id_fields = ['id_loc_com', 'id_empleado', 'id_caja']
 
     inlines = [DetallesVentasInline]
 
@@ -54,5 +54,5 @@ class DetallesVentasAdmin(admin.ModelAdmin):
         'subtotal'                # CORREGIDO: coincide con models.py
     ]
     list_filter = ['id_venta', 'id_producto']
-    search_fields = ['id_detalle_venta', 'id_venta__id_venta']
+    search_fields = ['id_producto__nombre_producto', 'id_venta__id_venta']
     raw_id_fields = ['id_venta', 'id_producto']
