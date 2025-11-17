@@ -4,7 +4,7 @@ from a_central.models import Proveedores, Empleados, LocalesComerciales, Product
 
 class PedidosProveedor(models.Model):
     id_pedido_prov = models.AutoField(db_column='ID_Pedido_Prov', primary_key=True)
-    id_loc_com = models.ForeignKey('a_central.LocalesComerciales', models.DO_NOTHING, db_column='ID_Loc_Com')
+    id_loc_com = models.ForeignKey(LocalesComerciales, models.DO_NOTHING, db_column='ID_Loc_Com', verbose_name='Local Comercial')
     id_proveedor = models.ForeignKey('a_central.Proveedores', models.DO_NOTHING, db_column='ID_Proveedor')
     id_empleado = models.ForeignKey('a_central.Empleados', models.DO_NOTHING, db_column='ID_Empleado', blank=True, null=True)
     fh_pedido_prov = models.DateTimeField(db_column='FH_Pedido_Prov')
@@ -36,7 +36,7 @@ class DetallePedidosProveedor(models.Model):
 class Compras(models.Model):
     id_compra = models.AutoField(db_column='ID_Compra', primary_key=True)
     # Referencias a modelos centrales
-    id_sucursal = models.ForeignKey(LocalesComerciales, models.DO_NOTHING, db_column='ID_Sucursal', verbose_name='Local Comercial')
+    id_loc_com = models.ForeignKey(LocalesComerciales, models.DO_NOTHING, db_column='ID_Loc_Com', verbose_name='Local Comercial')
     cuit_proveedor = models.ForeignKey(Proveedores, models.DO_NOTHING, db_column='Cuit_Proveedor', to_field='cuit_prov')
     legajo_empleado = models.ForeignKey(Empleados, models.DO_NOTHING, db_column='Legajo_Empleado')
     

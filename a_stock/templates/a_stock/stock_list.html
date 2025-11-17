@@ -1,0 +1,115 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <!-- 🔹 TÍTULO -->
+    <h2 class="text-center mb-4 fw-bold text-primary">📦 Control de Stock y Vencimientos</h2>
+
+    <!-- 🔹 FILTROS -->
+    <form method="get" class="row g-3 mb-3">
+        <div class="col-md-4">
+            <input type="text" name="buscar" class="form-control" placeholder="Buscar por producto o local..." value="{{ request.GET.buscar }}">
+        </div>
+        <div class="col-md-3">
+            <select name="producto" class="form-select">
+                <option value="">Todos los productos</option>
+                {% for p in productos %}
+                    <option value="{{ p.id_producto }}" {% if request.GET.producto == p.id_producto|stringformat:"s" %}selected{% endif %}>
+                        {{ p.nombre_producto }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="local" class="form-select">
+                <option value="">Todos los locales</option>
+                {% for l in locales %}
+                    <option value="{{ l.id_loc_com }}" {% if request.GET.local == l.id_loc_com|stringformat:"s" %}selected{% endif %}>
+                        {{ l.nombre_loc_com }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 text-end">
+            <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </form>
+
+    <!-- 🔹 TABLA -->
+    <div class="table-responsive shadow-sm">
+        <table class="table table-hover table-bordered align-middle text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th>Local Comercial</th>
+                    <th>Stock Actual</th>
+                    <th>Stock Mínimo</th>
+                    <th>Lotes Registrados</th>
+                    <th>Lote Próximo a Vencer</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in stocks %}
+                <tr>
+                    <td>{{ stock.id_producto.nombre_producto }}</td>
+                    <td>{{ stock.id_loc_com.nombre_loc_com }}</td>
+                    <td>
+                        {% if stock.stock_pxlc <= stock.stock_min_pxlc %}
+                            <span class="badge bg-danger">{{ stock.stock_pxlc }}</span>
+                        {% elif stock.stock_pxlc|add:"-1" <= stock.stock_min_pxlc %}
+                            <span class="badge bg-warning text-dark">{{ stock.stock_pxlc }}</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ stock.stock_pxlc }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ stock.stock_min_pxlc }}</td>
+
+                    <!-- 📦 COLUMNA DE LOTES -->
+                    <td class="text-center">
+                        {% if stock.lotes_activos.count > 0 %}
+                            <a href="{% url 'a_stock:ver_lotes' stock.id_producto.id_producto %}"
+                            class="btn btn-outline-info btn-sm"
+                            title="Ver lotes activos">
+                                <i class="fas fa-boxes"></i> {{ stock.lotes_activos.count }}
+                            </a>
+                        {% else %}
+                            <a href="{% url 'a_stock:ver_lotes' stock.id_producto.id_producto %}"
+                            class="btn btn-success btn-sm"
+                            title="Agregar lote">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                        {% endif %}
+                    </td>
+
+                    <!-- 📅 LOTE PRÓXIMO A VENCER -->
+                    <td class="text-center">
+                        {% if stock.lote_proximo %}
+                            {{ stock.lote_proximo.fecha_vencimiento|date:"d/m/Y" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
+                    <!-- 🗑️ SOLO ELIMINAR -->
+                    <td class="text-center">
+                        <a href="{% url 'a_stock:eliminar_stock' stock.id_stock_sucursal %}"
+                        class="btn btn-danger btn-sm"
+                        title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted">No hay productos en stock.</td></tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+
+</div>
+{% endblock %}

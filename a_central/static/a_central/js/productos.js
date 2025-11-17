@@ -88,44 +88,54 @@ $(document).ready(function() {
         "responsive": true
     });
 
-    // ============================================================
-    // 3. Registro de Producto
-    // ============================================================
-    $('#registrarProductoForm').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
+   // ============================================================
+// 3. Registro de Producto (ACTUALIZADO)
+// ============================================================
+$('#registrarProductoForm').on('submit', function(e) {
+    e.preventDefault();
+    const form = $(this);
 
-        form.find('.form-control, .form-select').removeClass('is-invalid');
-        $('#form-error-alerts').addClass('d-none');
+    form.find('.form-control, .form-select').removeClass('is-invalid');
+    $('#form-error-alerts').addClass('d-none');
 
-        $.ajax({
-            url: form.attr('action'),
-            method: 'POST',
-            data: form.serialize(),
-            success: function(response) {
-                Swal.fire('¡Éxito!', response.message || 'Producto registrado correctamente.', 'success');
-                $('#registrarProductoModal').modal('hide');
-                form[0].reset();
-                recargarTablas();
-            },
-            error: function(xhr) {
-                const r = xhr.responseJSON;
+    // Crear el objeto FormData manualmente para incluir todo
+    const formData = new FormData(form[0]);
 
-                if (r && r.details) {
-                    // Manejo de errores de validación de campos
-                    for (const field in r.details) {
-                        const message = r.details[field];
-                        const input = $(`#${field}`);
-                        input.addClass('is-invalid');
-                        $(`#error-${field}`).text(message);
-                    }
-                    $('#form-error-alerts').removeClass('d-none');
-                } else {
-                    Swal.fire('Error', r?.error || 'Error al registrar producto.', 'error');
+    // Agregamos explícitamente los campos nuevos
+    formData.append('id_loc_com', $('#id_loc_com').val());
+    formData.append('stock_pxlc', $('#stock_pxlc').val());
+    formData.append('stock_min_pxlc', $('#stock_min_pxlc').val());
+
+    $.ajax({
+        url: form.attr('action'),
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            Swal.fire('¡Éxito!', response.message || 'Producto y stock registrados correctamente.', 'success');
+            $('#registrarProductoModal').modal('hide');
+            form[0].reset();
+            recargarTablas();
+        },
+        error: function(xhr) {
+            const r = xhr.responseJSON;
+
+            if (r && r.details) {
+                for (const field in r.details) {
+                    const message = r.details[field];
+                    const input = $(`#${field}`);
+                    input.addClass('is-invalid');
+                    $(`#error-${field}`).text(message);
                 }
+                $('#form-error-alerts').removeClass('d-none');
+            } else {
+                Swal.fire('Error', r?.error || 'Error al registrar producto.', 'error');
             }
-        });
+        }
     });
+});
+
 
     // ============================================================
     // 4. Modificación de Producto

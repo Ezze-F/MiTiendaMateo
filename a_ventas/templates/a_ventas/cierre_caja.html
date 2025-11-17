@@ -1,0 +1,110 @@
+{% extends 'a_inicio/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2>{{ page_title }} - {{ fecha|date:"d/m/Y" }}</h2>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Resumen del Día</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Cantidad de Ventas:</strong> {{ cantidad_ventas }}</p>
+                            <p><strong>Total Vendido:</strong> ${{ total_ventas|floatformat:2 }}</p>
+                            <p><strong>Promedio por Venta:</strong> 
+                                ${% if cantidad_ventas %}{{ total_ventas|div:cantidad_ventas|floatformat:2 }}{% else %}0.00{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Arqueos de Caja</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if arqueos %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Caja</th>
+                                                <th>Inicio</th>
+                                                <th>Cierre</th>
+                                                <th>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for arqueo in arqueos %}
+                                            <tr>
+                                                <td>Caja {{ arqueo.id_caja.numero_caja }}</td>
+                                                <td>{{ arqueo.fh_apertura|date:"H:i" }}</td>
+                                                <td>{{ arqueo.fh_cierre|date:"H:i" }}</td>
+                                                <td>${{ arqueo.total_ingresos_efectivo_calculado|default:0|floatformat:2 }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No hay arqueos de caja para hoy</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Detalle de Ventas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID Venta</th>
+                                    <th>Hora</th>
+                                    <th>Local</th>
+                                    <th>Empleado</th>
+                                    <th>Caja</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for venta in ventas %}
+                                <tr>
+                                    <td>{{ venta.id_venta }}</td>
+                                    <td>{{ venta.fh_venta|date:"H:i:s" }}</td>
+                                    <td>{{ venta.id_loc_com.nombre_loc_com }}</td>
+                                    <td>{{ venta.id_empleado.nombre_emp }} {{ venta.id_empleado.apellido_emp }}</td>
+                                    <td>
+                                        {% if venta.id_caja %}
+                                            Caja {{ venta.id_caja.numero_caja }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>${{ venta.total_venta }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No hay ventas hoy</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

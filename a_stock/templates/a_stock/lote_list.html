@@ -1,0 +1,105 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center mb-4">📦 Lotes de {{ producto.nombre_producto }}</h2>
+
+
+    <!-- 🔔 ALERTA DE ESTADO DE LOTES -->
+    {% if lotes %}
+    <div id="alerta-lotes" class="alert alert-info shadow-sm position-relative" role="alert">
+        <h5 class="fw-bold mb-2">🔍 Estado general de lotes</h5>
+        <ul class="mb-0">
+            <li><strong>🟥 {{ lotes_vencidos_count }}</strong> lote(s) vencido(s)</li>
+            <li><strong>🟨 {{ lotes_por_vencer_count }}</strong> lote(s) por vencer (menos de 30 días)</li>
+            <li><strong>🟩 {{ lotes_vigentes_count }}</strong> lote(s) vigentes</li>
+        </ul>
+        <button id="btn-cerrar-alerta" class="btn-close position-absolute top-0 end-0 mt-2 me-2" aria-label="Cerrar"></button>
+    </div>
+    {% endif %}
+
+    <!-- BOTONES -->
+    <div class="text-end mb-3">
+        <a href="{% url 'a_stock:nuevo_lote' producto.id_producto %}" class="btn btn-success">
+            ➕ Nuevo Lote
+        </a>
+        <a href="{% url 'a_stock:lista_stock' %}" class="btn btn-secondary">⬅ Volver al Stock</a>
+    </div>
+
+    <!-- TABLA DE LOTES -->
+    <table class="table table-hover table-bordered text-center align-middle shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>N° Lote</th>
+                <th>Local Comercial</th>
+                <th>Cantidad</th>
+                <th>Fecha Ingreso</th>
+                <th>Fecha Vencimiento</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="tabla-lotes">
+            {% for lote in lotes %}
+            <tr data-fecha-vencimiento="{{ lote.fecha_vencimiento|date:'Y-m-d' }}">
+                <td><strong>{{ lote.numero_lote }}</strong></td>
+                <td>{{ lote.id_loc_com.nombre_loc_com }}</td>
+                <td>{{ lote.cantidad }}</td>
+                <td>{{ lote.fecha_ingreso|date:'d/m/Y' }}</td>
+                <td>{{ lote.fecha_vencimiento|date:'d/m/Y' }}</td>
+                <td>
+                    {% if lote.fecha_vencimiento < today %}
+                        <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Vencido</span>
+                    {% elif lote.fecha_vencimiento <= proximo %}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle"></i> Por vencer</span>
+                    {% else %}
+                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> Vigente</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'a_stock:editar_lote' lote.id_lote %}" class="btn btn-warning btn-sm" title="Editar">
+                        <i class="fas fa-pencil-alt"></i>
+                    </a>
+                   {% if lote.activo %}
+                    <a href="{% url 'a_stock:eliminar_lote' lote.id_lote %}" class="btn btn-danger btn-sm" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                    {% else %}
+                    <a href="{% url 'a_stock:reactivar_lote' lote.id_lote %}" class="btn btn-success btn-sm" title="Reactivar">
+                        <i class="fas fa-undo"></i>
+                    </a>
+                    {% endif %}
+
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted">No hay lotes registrados.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- BOTÓN PARA MOSTRAR ALERTA NUEVAMENTE -->
+    <div class="text-end mt-3">
+        <button id="btn-mostrar-alerta" class="btn btn-outline-info d-none">
+            🔔 Mostrar alerta nuevamente
+        </button>
+    </div>
+</div>
+
+<!-- Vincular JavaScript externo -->
+<script src="{% static 'a_stock/js/lote_alertas.js' %}"></script>
+{% endblock %}
+
+<!-- 🔥 LOTE MÁS PRÓXIMO A VENCER -->
+{% if lote_mas_proximo %}
+<div class="alert alert-warning d-flex align-items-center justify-content-between shadow-sm" role="alert" id="alerta-lote-proximo">
+    <div>
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Atención:</strong> el lote 
+        <strong>#{{ lote_mas_proximo.numero_lote }}</strong> de 
+        <strong>{{ lote_mas_proximo.id_producto.nombre_producto }}</strong> vence el 
+        <strong>{{ lote_mas_proximo.fecha_vencimiento|date:"d/m/Y" }}</strong>.
+    </div>
+    <button id="cerrar-alerta-lote-proximo" class="btn-close" aria-label="Cerrar"></button>
+</div>
+{% endif %}

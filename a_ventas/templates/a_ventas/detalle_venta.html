@@ -1,0 +1,82 @@
+{% extends 'a_inicio/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ page_title }}</h2>
+                <a href="{% url 'a_ventas:listar_ventas' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Información de la Venta</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>ID Venta:</strong> {{ venta.id_venta }}</p>
+                            <p><strong>Fecha y Hora:</strong> {{ venta.fh_venta|date:"d/m/Y H:i:s" }}</p>
+                            <p><strong>Local:</strong> {{ venta.id_loc_com.nombre_loc_com }}</p>
+                            <p><strong>Empleado:</strong> {{ venta.id_empleado.nombre_emp }} {{ venta.id_empleado.apellido_emp }}</p>
+                            <p><strong>Caja:</strong> 
+                                {% if venta.id_caja %}
+                                    Caja {{ venta.id_caja.numero_caja }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </p>
+                            <p><strong>Total:</strong> ${{ venta.total_venta }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Detalles de Productos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Precio Unitario</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for detalle in detalles %}
+                                <tr>
+                                    <td>{{ detalle.id_producto.nombre_producto }}</td>
+                                    <td>{{ detalle.cantidad }}</td>
+                                    <td>${{ detalle.precio_unitario_venta }}</td>
+                                    <td>${{ detalle.subtotal }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No hay detalles de venta</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>${{ venta.total_venta }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

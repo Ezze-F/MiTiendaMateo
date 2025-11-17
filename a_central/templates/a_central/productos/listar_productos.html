@@ -85,6 +85,7 @@
 
 </div>
 
+<!-- ======================= MODAL REGISTRAR PRODUCTO ======================= -->
 <div class="modal fade" id="registrarProductoModal" tabindex="-1" aria-labelledby="registrarProductoModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -127,7 +128,55 @@
                         <input type="date" class="form-control" id="fecha_venc_prod" name="fecha_venc_prod">
                         <div class="invalid-feedback" id="error-fecha_venc_prod"></div>
                     </div>
-                    
+
+                    <!-- ======================= Código nuevo ======================= -->
+                    <div class="mb-3">
+                        <label for="tipo_unidad" class="form-label">Tipo:</label>
+                        <select class="form-select" id="tipo_unidad" name="tipo_unidad" required>
+                            <option value="unidad">Unidad</option>
+                            <option value="pack">Pack</option>
+                            <option value="kilo">Kilo</option>
+                            <option value="litro">Litro</option>
+                            <option value="docena">Docena</option>
+                        </select>
+                        <div class="invalid-feedback" id="error-tipo_unidad"></div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="cantidad_pack_group">
+                        <label for="cantidad_por_pack" id="cantidad_pack_label" class="form-label">Cantidad por Pack:</label>
+                        <input type="number" class="form-control" id="cantidad_por_pack" name="cantidad_por_pack" min="1">
+                        <div class="invalid-feedback" id="error-cantidad_por_pack"></div>
+                    </div>
+                    <!-- ======================= Fin Código nuevo ======================= -->
+
+                    <hr class="mt-4 mb-3">
+
+                    <h6 class="fw-bold">Configuración inicial de stock</h6>
+
+                    <div class="mb-3">
+                        <label for="id_loc_com" class="form-label">Local Comercial:</label>
+                        <select class="form-select" id="id_loc_com" name="id_loc_com" required>
+                            {% for local in locales %}
+                                <option value="{{ local.id_loc_com }}">{{ local.nombre_loc_com }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback" id="error-id_loc_com"></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="stock_pxlc" class="form-label">Stock Inicial:</label>
+                            <input type="number" class="form-control" id="stock_pxlc" name="stock_pxlc" value="0" min="0" required>
+                            <div class="invalid-feedback" id="error-stock_pxlc"></div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="stock_min_pxlc" class="form-label">Stock Mínimo:</label>
+                            <input type="number" class="form-control" id="stock_min_pxlc" name="stock_min_pxlc" value="0" min="0" required>
+                            <div class="invalid-feedback" id="error-stock_min_pxlc"></div>
+                        </div>
+                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -138,6 +187,55 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.AppUrls = {
+    modificarProducto: "{% url 'a_central:modificar_producto' producto_id=0 %}".replace('/0/', '/'),
+    borrarProducto: "{% url 'a_central:borrar_producto' producto_id=0 %}".replace('/0/', '/'),
+    recuperarProducto: "{% url 'a_central:recuperar_producto' producto_id=0 %}".replace('/0/', '/'),
+};
+
+// ======================= Código nuevo =======================
+// Mostrar u ocultar el campo "Cantidad por Pack" según el tipo de unidad seleccionado
+document.addEventListener("DOMContentLoaded", function() {
+    const tipoUnidad = document.getElementById("tipo_unidad");
+    const cantidadPackGroup = document.getElementById("cantidad_pack_group");
+    const cantidadPackLabel = document.getElementById("cantidad_pack_label");
+    const cantidadInput = document.getElementById("cantidad_por_pack");
+
+    function actualizarCampoCantidad() {
+        const valor = tipoUnidad.value;
+
+        // Mostrar campo para pack, kilo o litro
+        if (["pack", "kilo", "litro"].includes(valor)) {
+            cantidadPackGroup.classList.remove("d-none");
+
+            // Cambiar etiqueta según tipo
+            if (valor === "pack") {
+                cantidadPackLabel.textContent = "Cantidad por Pack:";
+            } else if (valor === "kilo") {
+                cantidadPackLabel.textContent = "Peso (en kilos):";
+            } else if (valor === "litro") {
+                cantidadPackLabel.textContent = "Cantidad de litros:";
+            }
+        } else {
+            cantidadPackGroup.classList.add("d-none");
+            cantidadInput.value = "";
+        }
+    }
+
+    tipoUnidad.addEventListener("change", actualizarCampoCantidad);
+    actualizarCampoCantidad(); // inicializa al cargar
+});
+// ======================= Fin Código nuevo =======================
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'a_central/js/productos.js' %}"></script>
+
+<!-- ======================= Código necesario para que funcione EDITAR PRODUCTO ======================= -->
 <div class="modal fade" id="modificarProductoModal" tabindex="-1" aria-labelledby="modificarProductoModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -150,7 +248,7 @@
                 </div>
                 <div class="modal-body">
                     <div id="modificar-error-alert" class="alert alert-danger d-none" role="alert"></div>
-                    
+
                     <div class="mb-3">
                         <label for="modificar_nombre_producto" class="form-label">Nombre:</label>
                         <input type="text" class="form-control" id="modificar_nombre_producto" name="nombre_producto" required>
@@ -181,6 +279,7 @@
                         <input type="date" class="form-control" id="modificar_fecha_alta_prod" name="fecha_alta_prod" disabled>
                     </div>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                     <button type="submit" class="btn btn-primary">Guardar cambios</button>
@@ -189,18 +288,7 @@
         </div>
     </div>
 </div>
+<!-- ======================= Fin Código necesario para que funcione EDITAR PRODUCTO ======================= -->
 
-{% endblock %}
 
-{% block scripts %}
-<script>
-window.AppUrls = {
-    modificarProducto: "{% url 'a_central:modificar_producto' producto_id=0 %}".replace('/0/', '/'),
-    borrarProducto: "{% url 'a_central:borrar_producto' producto_id=0 %}".replace('/0/', '/'),
-    recuperarProducto: "{% url 'a_central:recuperar_producto' producto_id=0 %}".replace('/0/', '/'),
-};
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="{% static 'a_central/js/productos.js' %}"></script>
 {% endblock %}

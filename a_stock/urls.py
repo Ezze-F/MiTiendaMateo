@@ -4,5 +4,25 @@ from . import views
 app_name = 'a_stock'
 
 urlpatterns = [
-   
+    #---Observaciones URLs---#
+    path('observaciones/', views.registrar_observacion, name='registrar_observacion'),
+    path('observaciones/<int:id>/', views.registrar_observacion, name='editar_observacion'),
+    path('observaciones/eliminar/<int:id>/', views.eliminar_observacion, name='eliminar_observacion'),
+
+    #---Stock URLs---#
+    path('stock/', views.lista_stock, name='lista_stock'),
+    path('stock/nuevo/', views.nuevo_stock, name='nuevo_stock'),
+    path('stock/editar/<int:id>/', views.editar_stock, name='editar_stock'),
+    path('stock/eliminar/<int:id>/', views.eliminar_stock, name='eliminar_stock'),
+    path('stock/', views.lista_stock, name='lista_stock'),
+    path('api/stock/', views.obtener_stock_json, name='obtener_stock_json'),
+
+    #---Lotes URLs---#
+    path('lotes/<int:id_producto>/', views.ver_lotes, name='ver_lotes'),
+    path('lotes/<int:id_producto>/nuevo/', views.nuevo_lote, name='nuevo_lote'),
+    path('lotes/editar/<int:id_lote>/', views.editar_lote, name='editar_lote'),
+    path('lotes/eliminar/<int:id_lote>/', views.eliminar_lote, name='eliminar_lote'),
+    path('lotes/reactivar/<int:id_lote>/', views.reactivar_lote, name='reactivar_lote'),
+
 ]
+

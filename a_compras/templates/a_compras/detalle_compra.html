@@ -1,0 +1,71 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}Detalle de Compra #{{ compra.id_compra }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h4 class="mb-4">Detalle de Compra #{{ compra.id_compra }}</h4>
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <p><strong>Local:</strong> {{ compra.id_loc_com.nombre_loc_com }}</p>
+            <p><strong>Proveedor:</strong> {{ compra.cuit_proveedor.nombre_prov }}</p>
+            <p><strong>Empleado:</strong> {{ compra.legajo_empleado.nombre_emp }}</p>
+            <p><strong>Fecha y Hora:</strong> {{ compra.fecha_hora_compra|date:"d/m/Y H:i" }}</p>
+            <p><strong>Monto Total:</strong> ${{ compra.monto_total }}</p>
+            <p><strong>Situación:</strong> {{ compra.situacion_compra }}</p>
+
+            <hr>
+<h5>Productos</h5>
+<table class="table table-striped table-bordered text-center">
+    <thead>
+        <tr>
+            <th>Producto</th>
+            <th>Marca</th>
+            <th>Tipo de Unidad</th>
+            <th>Cantidad</th>
+            <th>Precio Unitario</th>
+            <th>Subtotal</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for detalle in detalles %}
+        <tr>
+            <td>{{ detalle.id_producto.nombre_producto }}</td>
+            <td>
+                {% if detalle.id_producto.id_marca %}
+                    {{ detalle.id_producto.id_marca.nombre_marca }}
+                {% else %}
+                    <em>Sin marca</em>
+                {% endif %}
+            </td>
+            <td>
+                {{ detalle.id_producto.get_tipo_unidad_display }}
+                {% if detalle.id_producto.tipo_unidad == "pack" and detalle.id_producto.cantidad_por_pack %}
+                    (x{{ detalle.id_producto.cantidad_por_pack }})
+                {% endif %}
+            </td>
+            <td>{{ detalle.cantidad }}</td>
+            <td>${{ detalle.precio_unitario|floatformat:2 }}</td>
+            <td>${{ detalle.subtotal|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6"><em>No hay productos en esta compra.</em></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="5" class="text-end"><strong>Total:</strong></td>
+            <td><strong>${{ total|floatformat:2 }}</strong></td>
+        </tr>
+    </tfoot>
+</table>
+
+
+            <a href="{% url 'a_compras:listar_compras' %}" class="btn btn-secondary mt-3">Volver a Compras</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

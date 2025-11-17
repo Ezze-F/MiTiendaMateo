@@ -43,8 +43,8 @@ INSTALLED_APPS = [
     'a_central',
     'a_cajas',
     'a_compras',
-    'a_stock',
     'a_ventas',
+    'a_stock.apps.AStockConfig',
 ]
 
 MIDDLEWARE = [
@@ -86,7 +86,7 @@ DATABASES = { # Configuración de la BD
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'kioscomateo',
         'USER': 'root',
-        'PASSWORD': 'root',
+        'PASSWORD': '191265',
         'HOST': 'localhost',
         'PORT': '3306',
     }

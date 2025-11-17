@@ -342,6 +342,21 @@ class ProductoRegistroForm(forms.Form):
         label='Fecha de Vencimiento',
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
     )
+    
+    # NUEVOS CAMPOS
+    tipo_unidad = forms.ChoiceField(
+        choices=Productos.TIPO_UNIDAD_CHOICES,
+        required=True,
+        label='Tipo de Unidad',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    cantidad_por_pack = forms.IntegerField(
+        required=False,
+        label='Cantidad por Pack',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+        help_text='Solo completar si el producto es un pack.'
+    )
 
     def clean_nombre_producto(self):
         nombre = self.cleaned_data.get('nombre_producto')

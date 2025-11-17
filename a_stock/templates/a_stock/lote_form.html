@@ -1,0 +1,57 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center mb-4">
+        {% if lote %}
+            ✏️ Editar Lote #{{ lote.numero_lote }}
+        {% else %}
+            ➕ Nuevo Lote para {{ producto.nombre_producto }}
+        {% endif %}
+    </h2>
+
+    <!-- FORMULARIO -->
+    <form method="POST" class="card shadow p-4">
+        {% csrf_token %}
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="cantidad" class="form-label fw-bold">Cantidad</label>
+                <input type="number" name="cantidad" id="cantidad" class="form-control" required
+                       value="{{ lote.cantidad|default_if_none:'' }}">
+            </div>
+            <div class="col-md-6">
+                <label for="id_loc_com" class="form-label fw-bold">Local Comercial</label>
+                <select name="id_loc_com" id="id_loc_com" class="form-select" required>
+                    <option value="">Seleccione un local...</option>
+                    {% for loc in locales %}
+                        <option value="{{ loc.id_loc_com }}"
+                            {% if lote.id_loc_com.id_loc_com == loc.id_loc_com %}selected{% endif %}>
+                            {{ loc.nombre_loc_com }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="fecha_ingreso" class="form-label fw-bold">Fecha de ingreso</label>
+                <input type="date" name="fecha_ingreso" id="fecha_ingreso" class="form-control"
+                       value="{{ lote.fecha_ingreso|date:'Y-m-d'|default_if_none:'' }}" required>
+            </div>
+            <div class="col-md-6">
+                <label for="fecha_vencimiento" class="form-label fw-bold">Fecha de vencimiento</label>
+                <input type="date" name="fecha_vencimiento" id="fecha_vencimiento" class="form-control"
+                       value="{{ lote.fecha_vencimiento|date:'Y-m-d'|default_if_none:'' }}" required>
+            </div>
+        </div>
+
+        <div class="text-end">
+            <button type="submit" class="btn btn-primary">
+                {% if lote %}💾 Guardar Cambios{% else %}✅ Registrar Lote{% endif %}
+            </button>
+            <a href="{% url 'a_stock:ver_lotes' producto.id_producto %}" class="btn btn-secondary">⬅ Volver</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

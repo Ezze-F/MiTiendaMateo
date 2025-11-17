@@ -875,11 +875,19 @@ def _serialize_productos(queryset, is_deleted_view):
         data.append(producto_data)
     return data
 
+from a_central.models import LocalesComerciales
+
 def listar_productos(request):
     """Renderiza la página principal de productos."""
     form = ProductoRegistroForm()
-    marcas = Marcas.objects.all() # Necesario para los selects en el HTML
-    return render(request, 'a_central/productos/listar_productos.html', {'form': form, 'marcas': marcas})
+    marcas = Marcas.objects.all()  # Para el select de marca
+    locales = LocalesComerciales.objects.filter(borrado_loc_com=False)  # Para el select de locales
+
+    return render(request, 'a_central/productos/listar_productos.html', {
+        'form': form,
+        'marcas': marcas,
+        'locales': locales,  # ✅ Necesario para poblar el combo del modal
+    })
 
 
 @require_GET
@@ -906,31 +914,86 @@ def productos_eliminados_api(request):
         logger.error(f"Error al listar productos eliminados: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener productos eliminados.'}, status=500)
 
+from django.db import transaction, IntegrityError
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+import logging
+from a_central.models import Productos, LocalesComerciales
+from a_stock.models import Stock
+from .forms import ProductoRegistroForm  # tu formulario existente
+
+logger = logging.getLogger(__name__)
+
 @require_POST
 def registrar_producto(request):
-    """Crea un nuevo producto."""
+    """Crea un nuevo producto y su registro de stock inicial."""
     form = ProductoRegistroForm(request.POST)
 
     if not form.is_valid():
         errors = _form_errors_to_dict(form)
-        return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors})
+        return JsonResponse({
+            'success': False,
+            'error': 'Error de validación',
+            'details': errors
+        })
 
     data = form.cleaned_data
     try:
         with transaction.atomic():
-            Productos.all_objects.create(
+            # 1️⃣ Crear el producto
+            producto = Productos.all_objects.create(
                 nombre_producto=data['nombre_producto'],
-                id_marca=data['id_marca'], # Puede ser None si el campo no es requerido
+                id_marca=data['id_marca'],
                 precio_unit_prod=data['precio_unit_prod'],
                 fecha_venc_prod=data.get('fecha_venc_prod'),
+                tipo_unidad=data['tipo_unidad'],
+                cantidad_por_pack=data.get('cantidad_por_pack'),
                 borrado_prod=False
             )
-        return JsonResponse({'success': True, 'message': 'Producto registrado exitosamente.'})
+
+            # 2️⃣ Obtener datos del formulario del modal
+            id_loc_com = request.POST.get('id_loc_com')
+            stock_pxlc = int(request.POST.get('stock_pxlc', 0))
+            stock_min_pxlc = int(request.POST.get('stock_min_pxlc', 0))
+
+            # 3️⃣ Crear stock automáticamente
+            if id_loc_com:
+                Stock.objects.create(
+                    id_producto=producto,
+                    id_loc_com_id=id_loc_com,
+                    stock_pxlc=stock_pxlc,
+                    stock_min_pxlc=stock_min_pxlc,
+                    borrado_pxlc=False
+                )
+            else:
+                # Si no hay local seleccionado, se usa el primero disponible
+                local_default = LocalesComerciales.objects.first()
+                if local_default:
+                    Stock.objects.create(
+                        id_producto=producto,
+                        id_loc_com=local_default,
+                        stock_pxlc=stock_pxlc,
+                        stock_min_pxlc=stock_min_pxlc,
+                        borrado_pxlc=False
+                    )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Producto y stock registrados exitosamente.'
+        })
+
     except IntegrityError as e:
-        return JsonResponse({'success': False, 'error': f'Error de integridad: {str(e)}'})
+        return JsonResponse({
+            'success': False,
+            'error': f'Error de integridad: {str(e)}'
+        })
+
     except Exception as e:
         logger.error(f"Error al registrar producto: {e}", exc_info=True)
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
 
 
 @require_POST
@@ -1164,3 +1227,16 @@ def recuperar_billetera(request, billetera_id):
     except Exception as e:
         logger.error(f"Error al restaurar billetera virtual {billetera_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
+    
+from a_stock.models import Stock
+from a_central.models import LocalesComerciales
+
+try:
+    Stock.objects.create(
+        id_producto=producto,
+        id_loc_com=local_default,
+        stock_pxlc=0,
+        stock_min_pxlc=0
+    )
+except Exception as e:
+    print(f"No se pudo crear stock inicial: {e}")
