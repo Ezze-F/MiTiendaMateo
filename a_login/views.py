@@ -11,27 +11,89 @@ from a_central.models import Empleados
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from .models import UserProfile
+from django.utils import timezone
+from datetime import timedelta
+
+# --- CONSTANTES DE SEGURIDAD ---
+LOCKOUT_TIME_MINUTES = 10
+MAX_ATTEMPTS = 3
+# -------------------------------
+
 
 def login_view(request):
     """
-    Vista para manejar el inicio de sesión.
-    Solo se permite ingresar mediante el 'usuario_emp' y la contraseña correspondiente.
+    Vista para manejar el inicio de sesión con bloqueo por intentos fallidos.
     """
     if request.method == 'POST':
-        form = LoginForm(request, data=request.POST)
+        # Nota: Si el LoginForm usa request en su inicializador, mantenlo. 
+        # Si no, es mejor solo usar data=request.POST para evitar confusión.
+        form = LoginForm(request, data=request.POST) 
 
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
 
-            user = authenticate(request, username=username, password=password)
+            # 1. Intentar obtener el usuario y su perfil de seguridad antes de autenticar
+            try:
+                user = User.objects.get(username__iexact=username)
+                profile, created = UserProfile.objects.get_or_create(user=user)
+            except User.DoesNotExist:
+                # Si el usuario no existe, se gestiona el error al final sin penalización
+                user = None
+                profile = None
 
-            if user is not None:
-                auth_login(request, user)
+            # 2. Verificar el estado de bloqueo del perfil
+            if profile and profile.is_locked:
+                remaining_time = profile.unlock_time - timezone.now()
+                # Mostrar el tiempo de desbloqueo exacto
+                messages.error(request, 
+                               f'Su cuenta está temporalmente bloqueada por demasiados intentos. Intente de nuevo en {remaining_time.seconds // 60} minutos y {remaining_time.seconds % 60} segundos.')
+                return render(request, 'a_login/login.html', {'form': form})
+            
+            # 3. Intentar autenticar la credencial
+            user_auth = authenticate(request, username=username, password=password)
+
+            if user_auth is not None:
+                # --- INTENTO EXITOSO ---
+                auth_login(request, user_auth)
+                
+                # 4. Restablecer el contador de seguridad
+                if profile:
+                    profile.login_attempts = 0
+                    profile.unlock_time = None
+                    profile.last_login_fail = None
+                    profile.save()
+                    
+                messages.success(request, f'Bienvenido(a), {user_auth.username}.')
                 return redirect(settings.LOGIN_REDIRECT_URL)
+            
             else:
-                messages.error(request, "Credenciales incorrectas o usuario inactivo.")
+                # --- INTENTO FALLIDO (Credenciales incorrectas) ---
+                
+                if profile:
+                    # 5. Incrementar el contador de intentos fallidos
+                    profile.login_attempts += 1
+                    profile.last_login_fail = timezone.now()
+                    
+                    # 6. Aplicar el bloqueo si se supera el límite
+                    if profile.login_attempts >= MAX_ATTEMPTS:
+                        # Calcular el tiempo de desbloqueo (10 minutos)
+                        unlock_time = timezone.now() + timedelta(minutes=LOCKOUT_TIME_MINUTES)
+                        profile.unlock_time = unlock_time
+                        
+                        messages.error(request, 
+                                       f'Ha excedido el límite de {MAX_ATTEMPTS} intentos. Su cuenta ha sido bloqueada temporalmente por {LOCKOUT_TIME_MINUTES} minutos.')
+                    else:
+                        remaining = MAX_ATTEMPTS - profile.login_attempts
+                        messages.error(request, f'Credenciales incorrectas o usuario inactivo. Le quedan {remaining} intentos antes de ser bloqueado.')
+                        
+                    profile.save()
+                else:
+                    # Si el usuario no existe, mostrar un error genérico (sin penalización)
+                    messages.error(request, "Credenciales incorrectas o usuario inactivo.")
         else:
+            # Error de formulario (ej: campos vacíos)
             messages.error(request, "Error de inicio de sesión. Verifica tus datos.")
     else:
         form = LoginForm()
