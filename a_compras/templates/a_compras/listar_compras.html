@@ -11,7 +11,7 @@
         <h4 class="mb-4">Compras a Proveedores</h4>
     </div>
     <div class="col-6 text-end">
-        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#crearCompraModal">
+        <button id="boton-nueva-compra" type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#crearCompraModal">
             <i class="fas fa-plus-circle me-2"></i> Nueva Compra
         </button>
         <a href="{% url 'a_compras:listar_pedidos_provisorios' %}" class="btn btn-primary">
@@ -20,25 +20,26 @@
     </div>
 </div>
 
-<!-- Pestañas para Compras -->
+<!-- Pestañas -->
 <ul class="nav nav-tabs" id="comprasTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="activas-tab" data-bs-toggle="tab" data-bs-target="#comprasActivasTab" type="button" role="tab" aria-controls="comprasActivasTab" aria-selected="true">Compras Activas</button>
+        <button class="nav-link active" id="activas-tab" data-bs-toggle="tab" data-bs-target="#comprasActivasTab" type="button" role="tab">Compras Activas</button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="eliminadas-tab" data-bs-toggle="tab" data-bs-target="#comprasEliminadasTab" type="button" role="tab" aria-controls="comprasEliminadasTab" aria-selected="false">Compras Eliminadas</button>
+        <button class="nav-link" id="eliminadas-tab" data-bs-toggle="tab" data-bs-target="#comprasEliminadasTab" type="button" role="tab">Compras Eliminadas</button>
     </li>
 </ul>
 
 <div class="tab-content" id="comprasTabsContent">
-    <!-- Compras Activas -->
-    <div class="tab-pane fade show active" id="comprasActivasTab" role="tabpanel" aria-labelledby="activas-tab">
+
+    <!-- TAB COMPRAS ACTIVAS -->
+    <div class="tab-pane fade show active" id="comprasActivasTab" role="tabpanel">
         <div class="row mt-3">
             <div class="col-12">
                 <div class="card shadow mb-4">
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table id="dataTableCompras" class="table table-striped table-bordered text-center" width="100%">
+                            <table id="dataTableCompras" class="table table-striped table-bordered text-center align-middle">
                                 <thead>
                                     <tr>
                                         <th>ID Compra</th>
@@ -69,22 +70,27 @@
                                                 {% if not forloop.last %}, {% endif %}
                                             {% endfor %}
                                         </td>
-
                                         <td>{{ compra.fecha_hora_compra|date:"d/m/Y H:i" }}</td>
                                         <td>${{ compra.monto_total }}</td>
                                         <td>{{ compra.situacion_compra }}</td>
                                         <td>
-                                            <a href="#" class="btn btn-warning btn-sm mb-1 btn-abrir-estado" data-id="{{ compra.id_compra }}" data-estado="{{ compra.situacion_compra }}">
+                                            <a href="#" class="btn btn-warning btn-sm mb-1 btn-abrir-estado"
+                                               data-id="{{ compra.id_compra }}" data-estado="{{ compra.situacion_compra }}">
                                                 <i class="fas fa-edit"></i> Estado
                                             </a>
                                             <a href="{% url 'a_compras:detalle_compra' compra.id_compra %}" class="btn btn-info btn-sm mb-1">
                                                 <i class="fas fa-eye"></i> Ver detalle
                                             </a>
-                                            <a href="{% url 'a_compras:eliminar_compra' compra.id_compra %}" 
-                                            class="btn btn-danger btn-sm mb-1"
-                                            onclick="return confirm('¿Seguro que deseas eliminar esta compra?');">
-                                            <i class="fas fa-trash"></i> Eliminar
-                                        </a>
+                                            <button class="btn btn-danger btn-sm mb-1 btn-eliminar-compra"
+                                                    data-id="{{ compra.id_compra }}">
+                                                <i class="fas fa-trash"></i> Eliminar
+                                            </button>
+                                            <!-- {% comment %} BOTÓN REGISTRAR PAGO {% endcomment %} -->
+                                            <button class="btn btn-success btn-sm mb-1 btn-registrar-pago"
+                                                    data-id="{{ compra.id_compra }}"
+                                                    {% if compra.situacion_compra != "Completada" or compra.ya_pagada %}disabled{% endif %}>
+                                                <i class="fas fa-money-bill"></i> Registrar Pago
+                                            </button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -97,109 +103,99 @@
         </div>
     </div>
 
-    <!-- Compras Eliminadas -->
-<div class="tab-pane fade" id="comprasEliminadasTab" role="tabpanel" aria-labelledby="eliminadas-tab">
-    <div class="row mt-3">
-        <div class="col-12">
-            <div class="card shadow mb-4">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="dataTableComprasEliminadas" class="table table-striped table-bordered text-center" width="100%">
-                            <thead>
-                                <tr>
-                                    <th>ID Compra</th>
-                                    <th>Local</th>
-                                    <th>Proveedor</th>
-                                    <th>Empleado</th>
-                                    <th>Productos</th>
-                                    <th>Fecha y Hora</th>
-                                    <th>Monto Total</th>
-                                    <th>Situación</th>
-                                    <th>Opciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for compra in compras_eliminadas %}
-                                <tr>
-                                    <td>{{ compra.id_compra }}</td>
-                                    <td>{{ compra.id_loc_com.nombre_loc_com }}</td>
-                                    <td>{{ compra.cuit_proveedor.nombre_prov }}</td>
-                                    <td>{{ compra.legajo_empleado.nombre_emp }}</td>
-                                    <td>
-                                        {% for detalle in compra.detallescompras_set.all %}
-                                            {{ detalle.id_producto.nombre_producto }} (x{{ detalle.cantidad }}){% if not forloop.last %}, {% endif %}
-                                        {% endfor %}
-                                    </td>
-                                    <td>{{ compra.fecha_hora_compra|date:"d/m/Y H:i" }}</td>
-                                    <td>${{ compra.monto_total }}</td>
-                                    <td>{{ compra.situacion_compra }}</td>
-                                    <td>
-                                        <a href="{% url 'a_compras:detalle_compra' compra.id_compra %}" class="btn btn-info btn-sm mb-1">
-                                            <i class="fas fa-eye"></i> Ver detalle
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    <!-- TAB COMPRAS ELIMINADAS -->
+    <div class="tab-pane fade" id="comprasEliminadasTab" role="tabpanel">
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card shadow mb-4">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="dataTableComprasEliminadas" class="table table-striped table-bordered text-center align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>ID Compra</th>
+                                        <th>Local</th>
+                                        <th>Proveedor</th>
+                                        <th>Empleado</th>
+                                        <th>Productos</th>
+                                        <th>Fecha y Hora</th>
+                                        <th>Monto Total</th>
+                                        <th>Situación</th>
+                                        <th>Opciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for compra in compras_eliminadas %}
+                                    <tr>
+                                        <td>{{ compra.id_compra }}</td>
+                                        <td>{{ compra.id_loc_com.nombre_loc_com }}</td>
+                                        <td>{{ compra.cuit_proveedor.nombre_prov }}</td>
+                                        <td>{{ compra.legajo_empleado.nombre_emp }}</td>
+                                        <td>
+                                            {% for detalle in compra.detallescompras_set.all %}
+                                                {{ detalle.id_producto.nombre_producto }} (x{{ detalle.cantidad }}){% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        <td>{{ compra.fecha_hora_compra|date:"d/m/Y H:i" }}</td>
+                                        <td>${{ compra.monto_total }}</td>
+                                        <td>{{ compra.situacion_compra }}</td>
+                                        <td>
+                                            <a href="{% url 'a_compras:detalle_compra' compra.id_compra %}" class="btn btn-info btn-sm mb-1">
+                                                <i class="fas fa-eye"></i> Ver detalle
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-```
 
 </div>
 
-<!-- Aquí puedes mantener tu Modal de crear compra y cambiar estado, no cambian -->
-<!-- Modal Nueva Compra -->
+<!-- MODAL CREAR COMPRA -->
 <div class="modal fade" id="crearCompraModal" tabindex="-1" aria-labelledby="crearCompraModalLabel" aria-hidden="true" data-show="{{ show_modal|yesno:'true,false' }}">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
+            <!-- NO ACTION porque lo envías por AJAX -->
             <form method="POST">
                 {% csrf_token %}
                 <div class="modal-header">
-                    <h5 class="modal-title" id="crearCompraModalLabel">Nueva Compra a Proveedor</h5>
+                    <h5 class="modal-title">Nueva Compra a Proveedor</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     {{ compra_form.non_field_errors }}
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="id_proveedor" class="form-label">Proveedor</label>
+                            <label class="form-label">Proveedor</label>
                             {{ compra_form.proveedor }}
-                            {{ compra_form.proveedor.errors }}
                         </div>
                         <div class="col-md-6">
-                            <label for="id_local" class="form-label">Local Comercial</label>
+                            <label class="form-label">Local Comercial</label>
                             {{ compra_form.local }}
-                            {{ compra_form.local.errors }}
                         </div>
                     </div>
+
                     <hr>
                     <h5>Productos</h5>
-                    {% if detalle_formset.non_form_errors %}
-                        <div class="alert alert-danger" role="alert">
-                            {{ detalle_formset.non_form_errors }}
-                        </div>
-                    {% endif %}
+
                     <div id="formset-container" data-total-forms="{{ detalle_formset.total_form_count|default:'0' }}">
                         {{ detalle_formset.management_form }}
                         {% for form in detalle_formset %}
                         <div class="card mb-3 p-3 detalle-compra">
-                            {{ form.non_field_errors }}
                             <div class="row g-3 align-items-end">
                                 <div class="col-md-5">
                                     <label class="form-label">Producto</label>
                                     {{ form.id_producto }}
-                                    {{ form.id_producto.errors }}
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Cantidad</label>
                                     {{ form.cantidad }}
-                                    {{ form.cantidad.errors }}
                                 </div>
                                 <div class="col-md-2">
                                     <button type="button" class="btn btn-danger remove-form">Eliminar</button>
@@ -208,8 +204,10 @@
                         </div>
                         {% endfor %}
                     </div>
+
                     <button type="button" class="btn btn-primary mb-3" id="add-form">Agregar Producto</button>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                     <button type="submit" class="btn btn-success">Guardar Compra</button>
@@ -219,14 +217,14 @@
     </div>
 </div>
 
-<!-- Modal Cambiar Estado -->
-<div class="modal fade" id="estadoCompraModal" tabindex="-1" aria-labelledby="estadoCompraModalLabel" aria-hidden="true">
+<!-- MODAL CAMBIAR ESTADO -->
+<div class="modal fade" id="estadoCompraModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" id="estado-compra-form">
                 {% csrf_token %}
                 <div class="modal-header">
-                    <h5 class="modal-title" id="estadoCompraModalLabel">Cambiar Estado de Compra</h5>
+                    <h5 class="modal-title">Cambiar Estado de Compra</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -252,66 +250,17 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+    const csrf_token = "{{ csrf_token }}";
+</script>
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-$(document).ready(function() {
-    // Inicializar DataTables
-    $('#dataTableCompras').DataTable({
-        "order": [[0, "desc"]],
-        "language": { "url": "https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json" }
-    });
-    $('#dataTableComprasEliminadas').DataTable({
-        "order": [[0, "desc"]],
-        "language": { "url": "https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json" }
-    });
-
-    // Formset dinámico
-    let form_idx = {{ detalle_formset.total_form_count|default:"0" }};
-    $('#add-form').click(function() {
-        let form_html = $('.detalle-compra:first').clone(false);
-        form_html.find('input, select').each(function() {
-            let name = $(this).attr('name').replace(/\-\d+\-/, '-' + form_idx + '-');
-            let id = 'id_' + name;
-            $(this).attr({'name': name, 'id': id})
-                   .val('')
-                   .removeClass('is-invalid');
-        });
-        form_html.find('.errorlist').remove();
-        form_html.find('.invalid-feedback').remove();
-        $('#formset-container').append(form_html);
-        form_idx++;
-        $('#id_detallescompras_set-TOTAL_FORMS').val(form_idx);
-    });
-
-    $('#formset-container').on('click', '.remove-form', function() {
-        if($('.detalle-compra').length > 1){
-            $(this).closest('.detalle-compra').remove();
-            let current_total = parseInt($('#id_detallescompras_set-TOTAL_FORMS').val());
-            $('#id_detallescompras_set-TOTAL_FORMS').val(current_total - 1);
-        }
-    });
-
-    // Abrir modal de cambiar estado
-    $('.btn-abrir-estado').click(function() {
-        let compraId = $(this).data('id');
-        let estado = $(this).data('estado');
-        $('#compra-id-input').val(compraId);
-        $('#estado-select').val(estado);
-        var estadoModal = new bootstrap.Modal(document.getElementById('estadoCompraModal'));
-        estadoModal.show();
-    });
-
-    {% if show_modal %}
-    var compraModal = new bootstrap.Modal(document.getElementById('crearCompraModal'));
-    compraModal.show();
-    {% endif %}
-});
+    const ajaxLocalesProductosUrl = "{% url 'a_compras:ajax_locales_productos' 0 %}";
 </script>
 
+<script src="{% static 'js/compras.js' %}"></script>
 {% endblock %}

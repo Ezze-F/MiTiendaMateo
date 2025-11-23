@@ -14,7 +14,7 @@
                 
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label class="form-label">Local Comercial</label>
+                        <label class="form-label">Local Comercial *</label>
                         <select name="id_loc_com" class="form-control" id="id_loc_com" required>
                             <option value="">Seleccionar local...</option>
                             {% for local in locales %}
@@ -24,14 +24,14 @@
                     </div>
                     
                     <div class="col-md-4">
-                        <label class="form-label">Caja</label>
+                        <label class="form-label">Caja *</label>
                         <select name="id_caja" class="form-control" id="id_caja" required>
                             <option value="">Seleccionar caja...</option>
                         </select>
                     </div>
                     
                     <div class="col-md-4">
-                        <label class="form-label">Empleado</label>
+                        <label class="form-label">Empleado *</label>
                         <select name="id_empleado" class="form-control" id="id_empleado" required>
                             <option value="">Seleccionar empleado...</option>
                             {% for empleado in empleados %}
@@ -46,10 +46,11 @@
                 <!-- Búsqueda de productos -->
                 <div class="row mb-3">
                     <div class="col-12">
+                        <label class="form-label">Buscar Productos</label>
                         <div class="input-group">
                             <input type="text" class="form-control" id="buscar_producto" 
-                                   placeholder="Buscar producto por nombre...">
-                            <button class="btn btn-outline-secondary" type="button" id="btn-buscar">
+                                   placeholder="Ingrese nombre del producto...">
+                            <button class="btn btn-outline-primary" type="button" id="btn-buscar">
                                 <i class="fas fa-search"></i> Buscar
                             </button>
                         </div>
@@ -59,7 +60,7 @@
                 <!-- Resultados de búsqueda -->
                 <div class="row mb-3">
                     <div class="col-12">
-                        <div id="resultados-busqueda" class="list-group" style="display: none;"></div>
+                        <div id="resultados-busqueda" class="list-group" style="display: none; max-height: 300px; overflow-y: auto;"></div>
                     </div>
                 </div>
 
@@ -69,7 +70,7 @@
                         <h5>Productos a vender</h5>
                         <div id="detalles-venta" class="table-responsive">
                             <table class="table table-bordered">
-                                <thead>
+                                <thead class="table-light">
                                     <tr>
                                         <th>Producto</th>
                                         <th>Cantidad</th>
@@ -84,7 +85,7 @@
                                 <tfoot>
                                     <tr>
                                         <td colspan="3" class="text-end"><strong>Total:</strong></td>
-                                        <td id="total-venta">$0.00</td>
+                                        <td id="total-venta" class="fw-bold">$0.00</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
@@ -92,6 +93,9 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Campo oculto para almacenar detalles -->
+                <div id="detalles-hidden"></div>
 
                 <div class="row">
                     <div class="col-12">
@@ -103,9 +107,6 @@
                         </a>
                     </div>
                 </div>
-
-                <!-- Campo oculto para almacenar detalles -->
-                <div id="detalles-hidden"></div>
             </form>
         </div>
     </div>

@@ -1,0 +1,65 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+{% block title %}Detalle Pedido Provisorio #{{ pedido.id_pedido_prov }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col-8">
+            <h4>Detalle Pedido Provisorio #{{ pedido.id_pedido_prov }}</h4>
+            <p><strong>Proveedor:</strong> {{ pedido.id_proveedor.nombre_prov }}</p>
+
+            {% if pedido.id_loc_com %}
+                <p><strong>Local:</strong> {{ pedido.id_loc_com.nombre_loc_com }}
+</p>
+            {% else %}
+                <p><strong>Local:</strong> -</p>
+            {% endif %}
+
+            <p><strong>Fecha:</strong> {{ pedido.fh_pedido_prov|date:"d/m/Y H:i" }}</p>
+            <p><strong>Estado:</strong> {{ pedido.estado_pedido_prov }}</p>
+            <p><strong>Total Estimado:</strong> ${{ pedido.total_estimado|default:"0.00" }}</p>
+        </div>
+
+        <div class="col-4 text-end">
+            <a href="{% url 'a_compras:listar_pedidos_provisorios' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            <form method="post" action="{% url 'a_compras:confirmar_pedido_provisorio' pk=pedido.id_pedido_prov %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success" onclick="return confirm('Confirmar y generar compra + stock + lotes?')">
+                    <i class="fas fa-check"></i> Confirmar Compra
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body">
+            <h6>Productos</h6>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad Solicitada</th>
+                        <th>Costo Est. Unit.</th>
+                        <th>Subtotal Est.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for det in detalles %}
+                    <tr>
+                        <td>{{ det.id_producto.nombre_producto }}</td>
+                        <td>{{ det.cantidad_solicitada }}</td>
+                        <td>${{ det.costo_est_unit|default:"0.00" }}</td>
+                        <td>${{ det.subtotal_est|default:"0.00" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center">No hay detalles.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

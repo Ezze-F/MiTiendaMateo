@@ -43,7 +43,6 @@
                                             <th class="text-center">Nombre</th>
                                             <th class="text-center">Marca</th>
                                             <th class="text-center">Precio Unitario</th>
-                                            <th class="text-center">Vencimiento</th>
                                             <th class="text-center">Fecha Alta</th>
                                             <th class="text-center">Acciones</th>
                                         </tr>
@@ -82,9 +81,7 @@
             </div>
         </div>
     </div>
-
 </div>
-
 <!-- ======================= MODAL REGISTRAR PRODUCTO ======================= -->
 <div class="modal fade" id="registrarProductoModal" tabindex="-1" aria-labelledby="registrarProductoModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -123,12 +120,6 @@
                         <div class="invalid-feedback" id="error-precio_unit_prod"></div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="fecha_venc_prod" class="form-label">Fecha de Vencimiento:</label>
-                        <input type="date" class="form-control" id="fecha_venc_prod" name="fecha_venc_prod">
-                        <div class="invalid-feedback" id="error-fecha_venc_prod"></div>
-                    </div>
-
                     <!-- ======================= Código nuevo ======================= -->
                     <div class="mb-3">
                         <label for="tipo_unidad" class="form-label">Tipo:</label>
@@ -147,12 +138,7 @@
                         <input type="number" class="form-control" id="cantidad_por_pack" name="cantidad_por_pack" min="1">
                         <div class="invalid-feedback" id="error-cantidad_por_pack"></div>
                     </div>
-                    <!-- ======================= Fin Código nuevo ======================= -->
-
-                    <hr class="mt-4 mb-3">
-
-                    <h6 class="fw-bold">Configuración inicial de stock</h6>
-
+                 
                     <div class="mb-3">
                         <label for="id_loc_com" class="form-label">Local Comercial:</label>
                         <select class="form-select" id="id_loc_com" name="id_loc_com" required>
@@ -165,18 +151,12 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="stock_pxlc" class="form-label">Stock Inicial:</label>
-                            <input type="number" class="form-control" id="stock_pxlc" name="stock_pxlc" value="0" min="0" required>
-                            <div class="invalid-feedback" id="error-stock_pxlc"></div>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
                             <label for="stock_min_pxlc" class="form-label">Stock Mínimo:</label>
                             <input type="number" class="form-control" id="stock_min_pxlc" name="stock_min_pxlc" value="0" min="0" required>
                             <div class="invalid-feedback" id="error-stock_min_pxlc"></div>
                         </div>
                     </div>
-
+                    <!-- ======================= Fin Código nuevo ======================= -->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -270,8 +250,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     </div>
 
                     <div class="mb-3">
-                        <label for="modificar_fecha_venc_prod" class="form-label">Fecha de Vencimiento:</label>
-                        <input type="date" class="form-control" id="modificar_fecha_venc_prod" name="fecha_venc_prod">
+                        <label for="modificar_stock_min_pxlc" class="form-label">Stock Mínimo:</label>
+                        <input type="number" class="form-control" id="modificar_stock_min_pxlc" name="stock_min_pxlc" min="0" required>
                     </div>
 
                     <div class="mb-3">

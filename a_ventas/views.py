@@ -1,6 +1,3 @@
-from django.shortcuts import render
-
-# Create your views here.
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods, require_POST
@@ -9,11 +6,12 @@ from django.contrib import messages
 from django.utils import timezone
 from datetime import datetime, date
 from decimal import Decimal
+import json
 
 from .models import Ventas, DetallesVentas
 from .forms import VentaForm, DetalleVentaForm
 from a_central.models import Productos, Empleados, LocalesComerciales
-from a_stock.models import Stock
+from a_stock.models import Stock, LoteProducto
 from a_cajas.models import Cajas, PagosVentas, MovimientosFinancieros, ArqueoCaja
 
 def listar_ventas(request):
@@ -28,16 +26,57 @@ def listar_ventas(request):
     }
     return render(request, 'a_ventas/listar_ventas.html', context)
 
+def reducir_stock_de_lotes(id_producto, id_loc_com, cantidad):
+    """
+    Reduce stock de los lotes con vencimiento más cercano primero
+    Retorna True si se pudo reducir completamente, False si no hay suficiente stock
+    """
+    # Obtener lotes activos ordenados por fecha de vencimiento (más cercano primero)
+    lotes = LoteProducto.objects.filter(
+        id_producto_id=id_producto,
+        id_loc_com_id=id_loc_com,
+        activo=True,
+        borrado_logico=False
+    ).order_by('fecha_vencimiento')
+    
+    cantidad_restante = cantidad
+    
+    for lote in lotes:
+        if cantidad_restante <= 0:
+            break
+            
+        if lote.cantidad >= cantidad_restante:
+            # Este lote tiene suficiente para cubrir lo que queda
+            lote.cantidad -= cantidad_restante
+            lote.save()
+            cantidad_restante = 0
+        else:
+            # Este lote no tiene suficiente, tomamos todo lo que tiene
+            cantidad_restante -= lote.cantidad
+            lote.cantidad = 0
+            lote.save()
+    
+    return cantidad_restante == 0
+
 def registrar_venta(request):
-    """Registra una nueva venta con sus detalles"""
+    """Registra una nueva venta con reducción de stock por lotes"""
     if request.method == 'POST':
         try:
             with transaction.atomic():
+                id_loc_com = request.POST.get('id_loc_com')
+                id_caja = request.POST.get('id_caja')
+                id_empleado = request.POST.get('id_empleado')
+                
+                # Validar campos requeridos
+                if not all([id_loc_com, id_caja, id_empleado]):
+                    messages.error(request, 'Todos los campos son requeridos')
+                    return redirect('a_ventas:registrar_venta')
+                
                 # Crear la venta
                 venta = Ventas(
-                    id_loc_com_id=request.POST.get('id_loc_com'),
-                    id_caja_id=request.POST.get('id_caja'),
-                    id_empleado_id=request.POST.get('id_empleado'),
+                    id_loc_com_id=id_loc_com,
+                    id_caja_id=id_caja,
+                    id_empleado_id=id_empleado,
                     fh_venta=timezone.now(),
                     total_venta=0
                 )
@@ -49,43 +88,67 @@ def registrar_venta(request):
                 
                 for detalle_str in detalles_data:
                     if detalle_str:
-                        producto_id, cantidad, precio = detalle_str.split('|')
-                        
-                        # Crear detalle de venta
-                        detalle = DetallesVentas(
-                            id_venta=venta,
-                            id_producto_id=int(producto_id),
-                            cantidad=int(cantidad),
-                            precio_unitario_venta=Decimal(precio),
-                            subtotal=int(cantidad) * Decimal(precio)
-                        )
-                        detalle.save()
-                        
-                        # Actualizar stock
-                        stock = Stock.objects.get(
-                            id_producto_id=int(producto_id),
-                            id_loc_com=venta.id_loc_com,
-                            borrado_pxlc=False
-                        )
-                        stock.stock_pxlc -= int(cantidad)
-                        stock.save()
-                        
-                        total_venta += detalle.subtotal
+                        try:
+                            producto_id, cantidad, precio = detalle_str.split('|')
+                            producto_id = int(producto_id)
+                            cantidad = int(cantidad)
+                            precio = Decimal(precio)
+                            
+                            # VERIFICAR STOCK TOTAL antes de procesar
+                            stock_total = Stock.objects.get(
+                                id_producto_id=producto_id,
+                                id_loc_com_id=id_loc_com,
+                                borrado_pxlc=False
+                            )
+                            
+                            if stock_total.stock_pxlc < cantidad:
+                                raise Exception(
+                                    f"Stock insuficiente. Solicitado: {cantidad}, Disponible: {stock_total.stock_pxlc}"
+                                )
+                            
+                            # REDUCIR STOCK DE LOTES (método FIFO - vencimiento más cercano primero)
+                            if not reducir_stock_de_lotes(producto_id, id_loc_com, cantidad):
+                                raise Exception(
+                                    f"Error al reducir stock de lotes para el producto ID {producto_id}"
+                                )
+                            
+                            # ACTUALIZAR STOCK TOTAL (se sincronizará automáticamente por la señal)
+                            # La señal post_save de LoteProducto actualizará el stock total
+                            
+                            # Crear detalle de venta
+                            detalle = DetallesVentas(
+                                id_venta=venta,
+                                id_producto_id=producto_id,
+                                cantidad=cantidad,
+                                precio_unitario_venta=precio,
+                                subtotal=cantidad * precio
+                            )
+                            detalle.save()
+                            
+                            total_venta += detalle.subtotal
+                            
+                        except Stock.DoesNotExist:
+                            raise Exception(f"Producto ID {producto_id} sin stock en este local")
+                        except ValueError as e:
+                            raise Exception(f"Error en formato de detalle: {detalle_str}")
+                
+                # Validar que haya al menos un producto
+                if total_venta == 0:
+                    venta.delete()  # Eliminar venta vacía
+                    raise Exception("Debe agregar al menos un producto a la venta")
                 
                 # Actualizar total de la venta
                 venta.total_venta = total_venta
                 venta.save()
                 
-                # Registrar pago (asumiendo pago en efectivo por defecto)
+                # Registrar movimiento financiero si hay caja
                 if venta.id_caja:
-                    # Buscar arqueo de caja activo
                     arqueo_activo = ArqueoCaja.objects.filter(
                         id_caja=venta.id_caja,
                         fh_cierre__isnull=True
                     ).first()
                     
                     if arqueo_activo:
-                        # Registrar movimiento financiero
                         MovimientosFinancieros.objects.create(
                             id_arqueo=arqueo_activo,
                             medio_pago='EFECTIVO',
@@ -103,13 +166,11 @@ def registrar_venta(request):
     
     # GET request - mostrar formulario vacío
     form = VentaForm()
-    detalle_form = DetalleVentaForm()
     locales = LocalesComerciales.objects.filter(borrado_loc_com=False)
     empleados = Empleados.objects.filter(borrado_emp=False)
     
     context = {
         'form': form,
-        'detalle_form': detalle_form,
         'locales': locales,
         'empleados': empleados,
         'page_title': 'Registrar Nueva Venta'
@@ -133,24 +194,45 @@ def detalle_venta(request, venta_id):
 
 @require_POST
 def anular_venta(request, venta_id):
-    """Anula una venta (borrado lógico) y restaura el stock"""
+    """Anula una venta (borrado lógico) y restaura el stock en lotes"""
     try:
         with transaction.atomic():
             venta = get_object_or_404(Ventas, pk=venta_id, borrado_venta=False)
             
-            # Restaurar stock de cada producto
+            # Restaurar stock de cada producto en lotes
             detalles = DetallesVentas.objects.filter(id_venta=venta, borrado_det_v=False)
             for detalle in detalles:
-                try:
-                    stock = Stock.objects.get(
+                # Buscar lotes activos para restaurar el stock
+                lotes_activos = LoteProducto.objects.filter(
+                    id_producto=detalle.id_producto,
+                    id_loc_com=venta.id_loc_com,
+                    activo=True,
+                    borrado_logico=False
+                ).order_by('fecha_vencimiento')
+                
+                cantidad_restaurar = detalle.cantidad
+                
+                for lote in lotes_activos:
+                    if cantidad_restaurar <= 0:
+                        break
+                    
+                    # Restaurar en este lote
+                    lote.cantidad += cantidad_restaurar
+                    lote.save()
+                    cantidad_restaurar = 0
+                
+                # Si todavía queda stock por restaurar, crear un nuevo lote
+                if cantidad_restaurar > 0:
+                    # Crear un nuevo lote con la fecha actual
+                    nuevo_lote = LoteProducto(
                         id_producto=detalle.id_producto,
                         id_loc_com=venta.id_loc_com,
-                        borrado_pxlc=False
+                        cantidad=cantidad_restaurar,
+                        fecha_ingreso=timezone.now().date(),
+                        fecha_vencimiento=timezone.now().date() + timezone.timedelta(days=365),  # 1 año por defecto
+                        activo=True
                     )
-                    stock.stock_pxlc += detalle.cantidad
-                    stock.save()
-                except Stock.DoesNotExist:
-                    pass
+                    nuevo_lote.save()
                 
                 # Marcar detalle como borrado
                 detalle.borrado_det_v = True
@@ -169,10 +251,10 @@ def anular_venta(request, venta_id):
     
     return redirect('a_ventas:listar_ventas')
 
-# APIs para AJAX
+# Vistas que devuelven JSON (simulan APIs)
 @require_http_methods(["GET"])
 def productos_disponibles_api(request):
-    """API para buscar productos disponibles"""
+    """Devuelve productos disponibles en formato JSON"""
     query = request.GET.get('q', '')
     
     if query:
@@ -194,23 +276,60 @@ def productos_disponibles_api(request):
 
 @require_http_methods(["GET"])
 def verificar_stock_api(request, producto_id, local_id):
-    """API para verificar stock disponible"""
+    """Verifica stock disponible para un producto en un local"""
     try:
         stock = Stock.objects.get(
             id_producto_id=producto_id,
             id_loc_com_id=local_id,
             borrado_pxlc=False
         )
+        
+        producto = Productos.objects.get(id_producto=producto_id)
+        
+        # Obtener información de lotes para mostrar vencimientos
+        lotes = LoteProducto.objects.filter(
+            id_producto_id=producto_id,
+            id_loc_com_id=local_id,
+            activo=True,
+            borrado_logico=False
+        ).order_by('fecha_vencimiento')[:5]  # Solo los 5 lotes más próximos a vencer
+        
+        lotes_info = []
+        for lote in lotes:
+            lotes_info.append({
+                'lote': lote.numero_lote,
+                'cantidad': lote.cantidad,
+                'vencimiento': lote.fecha_vencimiento.strftime('%d/%m/%Y'),
+                'dias_restantes': (lote.fecha_vencimiento - timezone.now().date()).days
+            })
+        
         return JsonResponse({
             'disponible': stock.stock_pxlc,
-            'stock_minimo': stock.stock_min_pxlc
+            'stock_minimo': stock.stock_min_pxlc,
+            'producto_nombre': producto.nombre_producto,
+            'producto_precio': str(producto.precio_unit_prod) if producto.precio_unit_prod else '0.00',
+            'lotes': lotes_info
         })
     except Stock.DoesNotExist:
-        return JsonResponse({'disponible': 0, 'stock_minimo': 0})
+        return JsonResponse({
+            'disponible': 0, 
+            'stock_minimo': 0,
+            'producto_nombre': 'Producto no encontrado',
+            'producto_precio': '0.00',
+            'lotes': []
+        })
+    except Productos.DoesNotExist:
+        return JsonResponse({
+            'disponible': 0,
+            'stock_minimo': 0, 
+            'producto_nombre': 'Producto no existe',
+            'producto_precio': '0.00',
+            'lotes': []
+        })
 
 @require_http_methods(["GET"])
 def cajas_disponibles_api(request, local_id):
-    """API para obtener cajas disponibles de un local"""
+    """Devuelve cajas disponibles de un local"""
     cajas = Cajas.objects.filter(
         id_loc_com_id=local_id,
         caja_abierta=True,
@@ -256,7 +375,7 @@ def cierre_caja(request):
 
 @require_http_methods(["GET"])
 def ventas_del_dia_api(request):
-    """API para obtener ventas del día actual"""
+    """Devuelve ventas del día actual en formato JSON"""
     hoy = date.today()
     
     ventas = Ventas.objects.filter(

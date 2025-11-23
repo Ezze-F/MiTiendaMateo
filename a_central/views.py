@@ -12,6 +12,9 @@ from django.core.exceptions import ValidationError
 
 from .models import Empleados, Provincias, Marcas, Proveedores, LocalesComerciales, Productos, BilleterasVirtuales
 from .forms import EmpleadoRegistroForm, ProvinciaForm, MarcaForm, ProveedorRegistroForm, LocalComercialRegistroForm, ProductoRegistroForm, BilleteraRegistroForm, BilleteraModificacionForm
+from a_stock.models import Proveedoresxloccom
+from a_stock.models import Proveedoresxproductos
+from a_stock.models import Stock
 
 # Configuración de logging para ver errores en la consola
 logger = logging.getLogger(__name__)
@@ -567,8 +570,16 @@ def _serialize_proveedores(queryset, is_deleted_view):
 
 def listar_proveedores(request):
     """Renderiza la página principal de proveedores."""
-    return render(request, 'a_central/proveedores/listar_proveedores.html')
-
+    locales = LocalesComerciales.objects.all().order_by('nombre_loc_com')
+    productos = Productos.objects.filter(borrado_prod=False).order_by('nombre_producto')
+    
+    context = {
+        'locales_comerciales': locales,
+        'productos': productos,  # <-- esto es nuevo
+    }
+    
+    # El return debe estar al final, después de definir el contexto.
+    return render(request, 'a_central/proveedores/listar_proveedores.html', context)
 
 @require_GET
 def proveedores_disponibles_api(request):
@@ -593,9 +604,11 @@ def proveedores_eliminados_api(request):
         logger.error(f"Error al listar proveedores eliminados: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener proveedores eliminados.'}, status=500)
 
+import json
+
 @require_POST
 def registrar_proveedor(request):
-    """Crea un nuevo proveedor."""
+    """Crea un nuevo proveedor con locales y productos de forma segura."""
     form = ProveedorRegistroForm(request.POST)
 
     if not form.is_valid():
@@ -603,22 +616,67 @@ def registrar_proveedor(request):
         return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors})
 
     data = form.cleaned_data
+    locales_seleccionados = data.get('locales_comerciales', [])
+
+    # ===== Productos y costos =====
+    productos_json = request.POST.getlist('productos_proveedor[]')  # viene como JSON
+    productos_seleccionados = []
+    for p_json in productos_json:
+        try:
+            p = json.loads(p_json)
+            productos_seleccionados.append(p)
+        except json.JSONDecodeError:
+            continue  # ignorar si hay error en alguno
+
     try:
         with transaction.atomic():
-            Proveedores.all_objects.create(
+            # 1️⃣ Crear proveedor primero
+            nuevo_proveedor = Proveedores.all_objects.create(
                 cuit_prov=data['cuit_prov'],
                 nombre_prov=data['nombre_prov'],
-                telefono_prov=data.get('telefono_prov'),
-                email_prov=data.get('email_prov'),
-                direccion_prov=data.get('direccion_prov'),
+                telefono_prov=data.get('telefono_prov') or None,
+                email_prov=data.get('email_prov') or None,
+                direccion_prov=data.get('direccion_prov') or None,
                 borrado_prov=False
             )
+            logger.info(f"Proveedor creado: {nuevo_proveedor.id_proveedor} - {nuevo_proveedor.nombre_prov}")
+
+            # 2️⃣ Asociar locales comerciales
+            if locales_seleccionados:
+                relaciones_locales = [
+                    Proveedoresxloccom(id_proveedor=nuevo_proveedor, id_loc_com=local)
+                    for local in locales_seleccionados
+                ]
+                Proveedoresxloccom.objects.bulk_create(relaciones_locales)
+                logger.info(f"Locales asociados: {locales_seleccionados}")
+
+            # 3️⃣ Asociar productos con sus costos
+            relaciones_productos = []
+            for p in productos_seleccionados:
+                prod_id = p.get('id')
+                costo = p.get('costo')
+                if prod_id and costo:
+                    relaciones_productos.append(
+                        Proveedoresxproductos(
+                            id_proveedor=nuevo_proveedor,
+                            id_producto_id=int(prod_id),
+                            costo_compra=float(costo),
+                            borrado_pvxpr=False
+                        )
+                    )
+            if relaciones_productos:
+                Proveedoresxproductos.objects.bulk_create(relaciones_productos)
+                logger.info(f"Productos asociados: {[p['id'] for p in productos_seleccionados]}")
+
         return JsonResponse({'success': True, 'message': 'Proveedor registrado exitosamente.'})
-    except IntegrityError:
-        return JsonResponse({'success': False, 'error': 'Error de integridad: CUIT o Email duplicado.'})
+
+    except IntegrityError as e:
+        logger.error(f"Error de integridad al registrar proveedor: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': f'Error de integridad: {str(e)}'})
+
     except Exception as e:
         logger.error(f"Error al registrar proveedor: {e}", exc_info=True)
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({'success': False, 'error': f'Error inesperado: {str(e)}'})
 
 
 @require_POST
@@ -631,6 +689,11 @@ def modificar_proveedor(request, proveedor_id):
         telefono = request.POST.get('telefono_prov')
         email = request.POST.get('email_prov')
         direccion = request.POST.get('direccion_prov')
+
+        # Capturar la lista de IDs de locales enviados en la solicitud (Lista de strings)
+        locales_ids_nuevos = request.POST.getlist('locales_comerciales') 
+        # Convertir a enteros para seguridad y uso en queries
+        locales_ids_nuevos = [int(lid) for lid in locales_ids_nuevos if lid.isdigit()]
 
         # Validaciones de unicidad
         if Proveedores.all_objects.exclude(pk=proveedor_id).filter(cuit_prov=cuit).exists():
@@ -645,6 +708,41 @@ def modificar_proveedor(request, proveedor_id):
             proveedor.email_prov = email or None
             proveedor.direccion_prov = direccion or None
             proveedor.save()
+
+            # --- Lógica de Actualización de Locales ---
+            
+            # 5. Obtener los IDs de los locales atendidos actualmente
+            locales_actuales = Proveedoresxloccom.objects.filter(id_proveedor=proveedor).values_list('id_loc_com', flat=True)
+            locales_ids_actuales = set(locales_actuales)
+            locales_ids_nuevos_set = set(locales_ids_nuevos)
+
+            # Locales a Añadir: Están en la lista nueva, pero no en la actual
+            locales_a_añadir_ids = locales_ids_nuevos_set.difference(locales_ids_actuales)
+            
+            # Locales a Eliminar: Están en la lista actual, pero no en la nueva
+            locales_a_eliminar_ids = locales_ids_actuales.difference(locales_ids_nuevos_set)
+            
+            # 6. Ejecutar Añadir
+            if locales_a_añadir_ids:
+                # Obtenemos los objetos LocalesComerciales para crear la relación
+                locales_a_añadir = LocalesComerciales.objects.filter(pk__in=locales_a_añadir_ids)
+                relaciones_a_crear = [
+                    Proveedoresxloccom(
+                        id_proveedor=proveedor,
+                        id_loc_com=local
+                    )
+                    for local in locales_a_añadir
+                ]
+                Proveedoresxloccom.objects.bulk_create(relaciones_a_crear)
+                
+            # 7. Ejecutar Eliminar (Borrado físico o lógico, depende de tu necesidad)
+            if locales_a_eliminar_ids:
+                # Aquí se realiza un BORRADO FÍSICO de las filas en la tabla intermedia.
+                # Si tienes que hacer un BORRADO LÓGICO, el código sería diferente.
+                Proveedoresxloccom.objects.filter(
+                    id_proveedor=proveedor, 
+                    id_loc_com__in=locales_a_eliminar_ids
+                ).delete()
 
         return JsonResponse({'success': True, 'message': 'Proveedor modificado exitosamente.'})
 
@@ -857,14 +955,17 @@ def _serialize_productos(queryset, is_deleted_view):
         # Obtener el nombre de la marca
         nombre_marca = prod.id_marca.nombre_marca if prod.id_marca else 'Sin Marca'
 
+        stock = Stock.objects.filter(id_producto=prod.id_producto).first()
         producto_data = {
             'id_producto': prod.id_producto,
             'nombre_producto': prod.nombre_producto or 'N/A',
             'id_marca': prod.id_marca_id, # Para el modal de edición
             'nombre_marca': nombre_marca,
             'precio_unit_prod': precio_formato,
-            'fecha_venc_prod': prod.fecha_venc_prod.strftime('%Y-%m-%d') if prod.fecha_venc_prod else 'N/A',
             'fecha_alta_prod': prod.fecha_alta_prod.strftime('%Y-%m-%d'),
+            "id_loc_com": stock.id_loc_com_id,
+            "stock_min_pxlc": stock.stock_min_pxlc,
+
         }
 
         if is_deleted_view:
@@ -945,7 +1046,6 @@ def registrar_producto(request):
                 nombre_producto=data['nombre_producto'],
                 id_marca=data['id_marca'],
                 precio_unit_prod=data['precio_unit_prod'],
-                fecha_venc_prod=data.get('fecha_venc_prod'),
                 tipo_unidad=data['tipo_unidad'],
                 cantidad_por_pack=data.get('cantidad_por_pack'),
                 borrado_prod=False
@@ -953,7 +1053,6 @@ def registrar_producto(request):
 
             # 2️⃣ Obtener datos del formulario del modal
             id_loc_com = request.POST.get('id_loc_com')
-            stock_pxlc = int(request.POST.get('stock_pxlc', 0))
             stock_min_pxlc = int(request.POST.get('stock_min_pxlc', 0))
 
             # 3️⃣ Crear stock automáticamente
@@ -961,21 +1060,10 @@ def registrar_producto(request):
                 Stock.objects.create(
                     id_producto=producto,
                     id_loc_com_id=id_loc_com,
-                    stock_pxlc=stock_pxlc,
+                    stock_pxlc=0,
                     stock_min_pxlc=stock_min_pxlc,
                     borrado_pxlc=False
                 )
-            else:
-                # Si no hay local seleccionado, se usa el primero disponible
-                local_default = LocalesComerciales.objects.first()
-                if local_default:
-                    Stock.objects.create(
-                        id_producto=producto,
-                        id_loc_com=local_default,
-                        stock_pxlc=stock_pxlc,
-                        stock_min_pxlc=stock_min_pxlc,
-                        borrado_pxlc=False
-                    )
 
         return JsonResponse({
             'success': True,
@@ -1005,7 +1093,7 @@ def modificar_producto(request, producto_id):
         nombre = request.POST.get('nombre_producto')
         id_marca = request.POST.get('id_marca')
         precio = request.POST.get('precio_unit_prod')
-        fecha_venc = request.POST.get('fecha_venc_prod')
+        stock_minimo = request.POST.get('stock_min_pxlc')
         
         # 1. Validación de unicidad manual (Excluir el producto actual)
         if Productos.all_objects.exclude(pk=producto_id).filter(nombre_producto__iexact=nombre).exists():
@@ -1016,8 +1104,13 @@ def modificar_producto(request, producto_id):
             producto.nombre_producto = nombre
             producto.id_marca_id = id_marca if id_marca else None
             producto.precio_unit_prod = precio
-            producto.fecha_venc_prod = fecha_venc if fecha_venc else None
             producto.save()
+
+            # 🔥 🔥 Actualizar stock mínimo
+            stock = Stock.objects.filter(id_producto=producto, borrado_pxlc=False).first()
+            if stock:
+                stock.stock_min_pxlc = stock_minimo
+                stock.save()
 
         return JsonResponse({'success': True, 'message': 'Producto modificado exitosamente.'})
 
@@ -1027,6 +1120,10 @@ def modificar_producto(request, producto_id):
         logger.error(f"Error al modificar producto {producto_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
+@require_GET
+def obtener_stock_minimo(request, producto_id, id_loc_com):
+    stock = Stock.objects.get(id_producto=producto_id, id_loc_com=id_loc_com)
+    return JsonResponse({'stock_minimo': stock.stock_min_pxlc})
 
 @require_POST
 def borrar_producto(request, producto_id):

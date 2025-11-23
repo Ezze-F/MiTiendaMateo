@@ -1,3 +1,4 @@
+// a_ventas/static/a_ventas/js/ventas.js
 $(document).ready(function() {
     let detalles = [];
     
@@ -26,7 +27,10 @@ $(document).ready(function() {
     
     function buscarProductos() {
         const query = $('#buscar_producto').val();
-        if (query.length < 2) return;
+        if (query.length < 2) {
+            alert('Ingrese al menos 2 caracteres para buscar');
+            return;
+        }
         
         $.get('/ventas/api/productos/', { q: query }, function(data) {
             const resultados = $('#resultados-busqueda');
@@ -40,7 +44,7 @@ $(document).ready(function() {
             data.forEach(producto => {
                 const item = $(`
                     <div class="list-group-item list-group-item-action">
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="mb-1">${producto.nombre}</h6>
                                 <small class="text-muted">${producto.marca} - $${producto.precio}</small>
@@ -63,21 +67,25 @@ $(document).ready(function() {
                 const productoPrecio = $(this).data('precio');
                 
                 agregarProducto(productoId, productoNombre, productoPrecio);
-                $('#resultados-busqueda').hide().empty();
-                $('#buscar_producto').val('');
             });
         });
     }
     
     function agregarProducto(productoId, productoNombre, productoPrecio) {
-        // Verificar si el producto ya está en los detalles
+        // Verificar si ya está en los detalles
         const existe = detalles.find(d => d.productoId == productoId);
         if (existe) {
-            alert('Este producto ya está en la venta');
+            if (confirm('Este producto ya está en la venta. ¿Desea aumentar la cantidad?')) {
+                const index = detalles.findIndex(d => d.productoId == productoId);
+                const nuevaCantidad = detalles[index].cantidad + 1;
+                
+                // Verificar stock antes de aumentar
+                verificarYActualizarCantidad(index, nuevaCantidad);
+            }
             return;
         }
         
-        // Verificar stock
+        // Verificar stock antes de agregar
         const localId = $('#id_loc_com').val();
         if (!localId) {
             alert('Primero seleccione un local comercial');
@@ -86,8 +94,22 @@ $(document).ready(function() {
         
         $.get(`/ventas/api/stock/${productoId}/${localId}/`, function(stockData) {
             if (stockData.disponible <= 0) {
-                alert('Producto sin stock disponible');
+                alert(`Producto "${productoNombre}" sin stock disponible`);
                 return;
+            }
+            
+            // Mostrar información de lotes si está disponible
+            let infoLotes = '';
+            if (stockData.lotes && stockData.lotes.length > 0) {
+                infoLotes = '<small class="text-info d-block">';
+                stockData.lotes.forEach(lote => {
+                    const estado = lote.dias_restantes < 0 ? 'VENCIDO' : 
+                                  lote.dias_restantes < 30 ? 'PRÓXIMO' : 'OK';
+                    const clase = lote.dias_restantes < 0 ? 'text-danger' : 
+                                 lote.dias_restantes < 30 ? 'text-warning' : 'text-success';
+                    infoLotes += `<span class="${clase}">Lote ${lote.lote}: ${lote.cantidad} unidades (${estado})</span><br>`;
+                });
+                infoLotes += '</small>';
             }
             
             const detalle = {
@@ -95,10 +117,36 @@ $(document).ready(function() {
                 nombre: productoNombre,
                 precio: parseFloat(productoPrecio),
                 cantidad: 1,
-                subtotal: parseFloat(productoPrecio)
+                subtotal: parseFloat(productoPrecio),
+                stockDisponible: stockData.disponible,
+                infoLotes: infoLotes
             };
             
             detalles.push(detalle);
+            actualizarTablaDetalles();
+            actualizarTotal();
+            
+            $('#resultados-busqueda').hide().empty();
+            $('#buscar_producto').val('');
+        }).fail(function() {
+            alert('Error al verificar stock del producto');
+        });
+    }
+    
+    function verificarYActualizarCantidad(index, nuevaCantidad) {
+        const detalle = detalles[index];
+        const localId = $('#id_loc_com').val();
+        
+        $.get(`/ventas/api/stock/${detalle.productoId}/${localId}/`, function(stockData) {
+            if (nuevaCantidad > stockData.disponible) {
+                alert(`No hay suficiente stock. Máximo disponible: ${stockData.disponible}`);
+                return;
+            }
+            
+            detalles[index].cantidad = nuevaCantidad;
+            detalles[index].subtotal = nuevaCantidad * detalles[index].precio;
+            detalles[index].stockDisponible = stockData.disponible;
+            
             actualizarTablaDetalles();
             actualizarTotal();
         });
@@ -111,17 +159,23 @@ $(document).ready(function() {
         detalles.forEach((detalle, index) => {
             const fila = $(`
                 <tr>
-                    <td>${detalle.nombre}</td>
+                    <td>
+                        ${detalle.nombre}
+                        ${detalle.infoLotes || ''}
+                    </td>
                     <td>
                         <input type="number" class="form-control form-control-sm cantidad" 
-                               value="${detalle.cantidad}" min="1" data-index="${index}" 
-                               style="width: 80px;">
+                               value="${detalle.cantidad}" min="1" max="${detalle.stockDisponible}" 
+                               data-index="${index}" style="width: 80px;">
+                        <small class="text-muted">Stock total: ${detalle.stockDisponible}</small>
                     </td>
                     <td>$${detalle.precio.toFixed(2)}</td>
                     <td class="subtotal">$${detalle.subtotal.toFixed(2)}</td>
                     <td>
                         <button type="button" class="btn btn-sm btn-danger btn-eliminar" 
-                                data-index="${index}">Eliminar</button>
+                                data-index="${index}">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </td>
                 </tr>
             `);
@@ -134,10 +188,10 @@ $(document).ready(function() {
             const nuevaCantidad = parseInt($(this).val());
             
             if (nuevaCantidad > 0) {
-                detalles[index].cantidad = nuevaCantidad;
-                detalles[index].subtotal = nuevaCantidad * detalles[index].precio;
-                actualizarTablaDetalles();
-                actualizarTotal();
+                verificarYActualizarCantidad(index, nuevaCantidad);
+            } else {
+                alert('La cantidad debe ser mayor a 0');
+                $(this).val(detalles[index].cantidad);
             }
         });
         
@@ -181,5 +235,37 @@ $(document).ready(function() {
             alert('Complete todos los campos requeridos');
             return false;
         }
+        
+        // Verificar stock final antes de enviar
+        let stockValido = true;
+        let mensajeError = '';
+        
+        // Usar Promise para manejar las llamadas async
+        const verificaciones = detalles.map(detalle => {
+            return new Promise((resolve) => {
+                $.get(`/ventas/api/stock/${detalle.productoId}/${localId}/`, function(stockData) {
+                    if (detalle.cantidad > stockData.disponible) {
+                        stockValido = false;
+                        mensajeError = `Stock insuficiente para "${detalle.nombre}". Disponible: ${stockData.disponible}, Solicitado: ${detalle.cantidad}`;
+                    }
+                    resolve();
+                }).fail(function() {
+                    stockValido = false;
+                    mensajeError = `Error al verificar stock para "${detalle.nombre}"`;
+                    resolve();
+                });
+            });
+        });
+        
+        // Esperar a que todas las verificaciones terminen
+        Promise.all(verificaciones).then(() => {
+            if (!stockValido) {
+                e.preventDefault();
+                alert(mensajeError);
+                return false;
+            }
+        });
+        
+        return true;
     });
 });

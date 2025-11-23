@@ -24,8 +24,8 @@ $(document).ready(function() {
                 "className": "text-end",
                 "render": $.fn.dataTable.render.number('.', ',', 2, '$') // Formato de moneda
             },
-            { "data": "fecha_venc_prod", "defaultContent": "N/A" },
             { "data": "fecha_alta_prod" },
+            { "data": "id_loc_com", "visible": false },
             {
                 "data": null,
                 "render": function(data, type, row) {
@@ -83,6 +83,7 @@ $(document).ready(function() {
                 "orderable": false,
                 "className": "text-center"
             }
+
         ],
         "language": { "url": "https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json" },
         "responsive": true
@@ -103,7 +104,6 @@ $('#registrarProductoForm').on('submit', function(e) {
 
     // Agregamos explícitamente los campos nuevos
     formData.append('id_loc_com', $('#id_loc_com').val());
-    formData.append('stock_pxlc', $('#stock_pxlc').val());
     formData.append('stock_min_pxlc', $('#stock_min_pxlc').val());
 
     $.ajax({
@@ -142,14 +142,18 @@ $('#registrarProductoForm').on('submit', function(e) {
     // ============================================================
     $('#dataTableProductosDisponibles tbody').on('click', '.btn-editar', function() {
         const rowData = dataTableDisponibles.row($(this).parents('tr')).data();
+        console.log(rowData);
+
 
         $('#modificar_id_producto').val(rowData.id_producto);
         $('#modificar_nombre_producto').val(rowData.nombre_producto);
         $('#modificar_id_marca').val(rowData.id_marca || ''); // Usamos el ID de la marca
         $('#modificar_precio_unit_prod').val(rowData.precio_unit_prod.replace('$', '').replace('.', '').replace(',', '.')); // Limpiar y usar formato float
-        $('#modificar_fecha_venc_prod').val(rowData.fecha_venc_prod === 'N/A' ? '' : rowData.fecha_venc_prod);
         $('#modificar_fecha_alta_prod').val(rowData.fecha_alta_prod);
 
+        $.get(`/central/stock/minimo/${rowData.id_producto}/${rowData.id_loc_com}/`, function(data) {
+            $('#modificar_stock_min_pxlc').val(data.stock_minimo);
+        });
         $('#modificarProductoModal').modal('show');
     });
 
