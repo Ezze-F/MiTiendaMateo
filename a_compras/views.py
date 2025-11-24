@@ -186,6 +186,7 @@ from a_cajas.models import PagosCompras, MovimientosFinancieros
 def registrar_pago(request, compra_id):
     compra = get_object_or_404(Compras, pk=compra_id)
 
+    # La compra debe estar completada
     if compra.situacion_compra != "Completada":
         return JsonResponse({"error": "La compra debe estar completada antes de registrarse el pago."}, status=400)
 
@@ -198,17 +199,47 @@ def registrar_pago(request, compra_id):
     id_bv = request.POST.get("id_bv")
 
     with transaction.atomic():
+
+        # =============================================
+        # MÉTODO → BILLETERA VIRTUAL
+        # =============================================
         if metodo == "Billetera":
+
             if not id_bv:
                 return JsonResponse({"error": "Debe elegir una billetera virtual."}, status=400)
 
+            billetera = BilleterasVirtuales.objects.select_for_update().get(pk=id_bv)
+
+            # Verificar saldo suficiente
+            if billetera.saldo_bv < compra.monto_total:
+                return JsonResponse({"error": "La billetera no tiene saldo suficiente."}, status=400)
+
+            # Descontar saldo
+            billetera.saldo_bv -= compra.monto_total
+            billetera.save()
+
+            # Registrar pago
             PagosCompras.objects.create(
                 id_compra=compra,
-                id_bv=BilleterasVirtuales.objects.get(pk=id_bv),
+                id_bv=billetera,
                 monto=compra.monto_total
             )
-        
+
+            # Crear movimiento financiero (EGRESO por compra)
+            MovimientosFinancieros.objects.create(
+                id_bv=billetera,
+                id_compra=compra,
+                medio_pago="BV",
+                tipo_movimiento="EGRESO",
+                concepto=f"Pago de compra #{compra.id_compra} con billetera virtual",
+                monto=compra.monto_total
+            )
+
+        # =============================================
+        # MÉTODO → EFECTIVO
+        # =============================================
         elif metodo == "Efectivo":
+
             MovimientosFinancieros.objects.create(
                 id_compra=compra,
                 tipo_movimiento="EGRESO",
@@ -216,12 +247,12 @@ def registrar_pago(request, compra_id):
                 concepto=f"Pago de compra #{compra.id_compra}",
                 monto=compra.monto_total
             )
+        
         else:
             return JsonResponse({"error": "Método de pago inválido."}, status=400)
 
     return JsonResponse({"message": "Pago registrado correctamente."})
 
-    
 
 def ajax_billeteras(request):
     billeteras = list(BilleterasVirtuales.objects.values("id_bv", "nombre_bv"))
