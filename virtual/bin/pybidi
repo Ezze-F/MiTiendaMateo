@@ -1,4 +1,4 @@
-#!/home/ezequiel-xu/Instituto/PP2/MiTiendaMateo/virtual/bin/python3
+#!/home/ezequiel/Proyecto/MiTiendaMateo/virtual/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
