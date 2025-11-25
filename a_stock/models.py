@@ -88,7 +88,7 @@ class LoteProducto(models.Model):
             fecha = timezone.now().strftime("%Y%m%d")
             cantidad_existente = LoteProducto.objects.filter(
                 id_producto=self.id_producto,
-                fecha_ingreso__date=timezone.now().date()
+                fecha_ingreso=timezone.now().date()
             ).count() + 1
             self.numero_lote = f"{prefix}-{fecha}-{cantidad_existente:03d}"
         super().save(*args, **kwargs)

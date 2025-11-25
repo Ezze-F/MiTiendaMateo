@@ -161,12 +161,39 @@ def ajax_locales_productos(request, proveedor_id):
         productos = Productos.objects.filter(
             proveedoresxproductos__id_proveedor=proveedor_id,
             proveedoresxproductos__borrado_pvxpr=False
-        ).values('id_producto', 'nombre_producto')
+        ).values(
+            'id_producto',
+            'nombre_producto',
+            'id_marca__nombre_marca',  # ⚠ importante
+            'tipo_unidad',
+            'cantidad_por_pack'
+        )
+
+        productos_list = []
+        for p in productos:
+            if p['tipo_unidad'] == 'pack' and p['cantidad_por_pack']:
+                unidad_mostrar = f"Pack x{p['cantidad_por_pack']}"
+            elif p['tipo_unidad'] == 'kilo':
+                unidad_mostrar = "Kilo (1 kg)"
+            elif p['tipo_unidad'] == 'litro':
+                unidad_mostrar = "Litro (1 L)"
+            elif p['tipo_unidad'] == 'docena':
+                unidad_mostrar = "Docena (12)"
+            else:
+                unidad_mostrar = "Unidad"
+
+            productos_list.append({
+                'id_producto': p['id_producto'],
+                'nombre_producto': p['nombre_producto'],
+                'id_marca__nombre_marca': p['id_marca__nombre_marca'],  # 🔹 conservar marca
+                'texto_unidad': unidad_mostrar
+            })
 
         return JsonResponse({
-            'locales': list(locales),
-            'productos': list(productos)
+            "locales": list(locales),
+            "productos": productos_list
         })
+
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

@@ -6,6 +6,10 @@ from django.db import IntegrityError
 from a_central.models import Marcas, Proveedores, LocalesComerciales, Productos
 from django.views.decorators.csrf import csrf_exempt
 from django.db import models
+from django.views.decorators.http import require_POST
+from a_compras.models import DetallesCompras, Compras
+from a_cajas.models import MovimientosFinancieros, PagosCompras
+from django.db import transaction
 
 
 def index(request):
@@ -396,3 +400,68 @@ def actualizar_stock_lote(sender, instance, **kwargs):
     )
     stock.stock_pxlc = total_lotes_activos
     stock.save()
+
+
+#CODIGO PARA IMPLEMENTAR LA CREACION DE LOTES CON EL REGISTRO DE PAGO
+def cargar_compras(request):
+
+    compras = Compras.objects.filter(
+        situacion_compra="Completada",
+        borrado_compra=False
+    )
+
+    compras_finales = []
+
+    for c in compras:
+
+        # ✔ Ya pagada
+        pagada = PagosCompras.objects.filter(id_compra=c).exists() or \
+                 MovimientosFinancieros.objects.filter(id_compra=c).exists()
+
+        if not pagada:
+            continue
+
+        # ✔ Ver si ya tiene lotes creados
+        detalles = DetallesCompras.objects.filter(id_compra=c)
+
+        productos_ids = detalles.values_list("id_producto_id", flat=True)
+
+        lotes_existentes = LoteProducto.objects.filter(
+            id_producto_id__in=productos_ids,
+            id_loc_com=c.id_loc_com,
+        ).exists()
+
+        if lotes_existentes:
+            # ❌ Ya fue cargada → NO se muestra
+            continue
+
+        compras_finales.append(c)
+
+    return render(request, "a_stock/cargar_compras.html", {
+        "compras": compras_finales
+    })
+
+@require_POST
+def procesar_compra_en_stock(request, compra_id):
+    try:
+        compra = get_object_or_404(Compras, pk=compra_id)
+        detalles = DetallesCompras.objects.filter(id_compra=compra)
+
+        with transaction.atomic():
+            for d in detalles:
+                fecha_vto = request.POST.get(f"vto_{d.id_detalle_compra}")
+                if not fecha_vto:
+                    return JsonResponse({"error": f"Falta fecha de vencimiento para {d.id_producto.nombre_producto}"}, status=400)
+
+                LoteProducto.objects.create(
+                    id_producto=d.id_producto,
+                    id_loc_com=compra.id_loc_com,
+                    cantidad=d.cantidad,
+                    fecha_ingreso=timezone.now(),   # DateTime completo
+                    fecha_vencimiento=fecha_vto
+                )
+
+        return JsonResponse({"success": "Compra cargada en stock correctamente."})
+    
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

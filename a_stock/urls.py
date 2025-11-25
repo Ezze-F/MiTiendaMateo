@@ -24,5 +24,8 @@ urlpatterns = [
     path('lotes/eliminar/<int:id_lote>/', views.eliminar_lote, name='eliminar_lote'),
     path('lotes/reactivar/<int:id_lote>/', views.reactivar_lote, name='reactivar_lote'),
 
+    #URLS NUEVAS PARA LA CREACIOND DE LOTES
+    path('cargar-compras/', views.cargar_compras, name='cargar_compras'),
+    path('procesar-compra/<int:compra_id>/', views.procesar_compra_en_stock, name='procesar_compra_en_stock'),
 ]
 

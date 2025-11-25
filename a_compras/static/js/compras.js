@@ -130,58 +130,74 @@ $(document).ready(function() {
     // 6. Filtrado dinámico de Locales y Productos por Proveedor
     // ==========================================================
     function actualizarProductosLocales(proveedorId, fila=null) {
-        if (proveedorId) {
-            const url = ajaxLocalesProductosUrl.replace('0', proveedorId);
+    if (proveedorId) {
+        const url = ajaxLocalesProductosUrl.replace('0', proveedorId);
 
-            $.ajax({
-                url: url,
-                type: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    // --- Actualizar Local ---
-                    let localSelect = $('#id_local');
-                    let selectedLocal = localSelect.val(); // guardar selección actual
-                    localSelect.empty().append('<option value="">Seleccione un local</option>');
-                    data.locales.forEach(function(loc) {
-                        localSelect.append(`<option value="${loc.id_loc_com}">${loc.nombre_loc_com}</option>`);
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+
+                // --- Actualizar Local ---
+                let localSelect = $('#id_local');
+                let selectedLocal = localSelect.val();
+                localSelect.empty().append('<option value="">Seleccione un local</option>');
+
+                data.locales.forEach(function(loc) {
+                    localSelect.append(`<option value="${loc.id_loc_com}">${loc.nombre_loc_com}</option>`);
+                });
+
+                if (selectedLocal && data.locales.some(l => l.id_loc_com == selectedLocal)) {
+                    localSelect.val(selectedLocal);
+                } else {
+                    localSelect.val('');
+                }
+
+                // --- Actualizar Productos ---
+                if (fila) {
+                    let sel = fila.find('select[name$="-id_producto"]');
+                    let valorActual = sel.val();
+
+                    sel.empty().append('<option value="">Seleccione un producto</option>');
+                    data.productos.forEach(function(prod) {
+
+                        let texto = `${prod.nombre_producto} — ${prod.id_marca__nombre_marca || "Sin marca"} — ${prod.texto_unidad}`;
+
+                        sel.append(`<option value="${prod.id_producto}">${texto}</option>`);
                     });
-                    // Restaurar valor previo si sigue disponible
-                    if (selectedLocal && data.locales.some(l => l.id_loc_com == selectedLocal)) {
-                        localSelect.val(selectedLocal);
-                    } else {
-                        localSelect.val(''); // opcional: dejar vacío si no existe
-                    }
 
-                    // --- Actualizar Productos ---
-                    if (fila) {
-                        let sel = fila.find('select[name$="-id_producto"]');
+                    sel.val(valorActual);
+
+                } else {
+
+                    $('.detalle-compra select[name$="-id_producto"]').each(function() {
+                        let sel = $(this);
                         let valorActual = sel.val();
+
                         sel.empty().append('<option value="">Seleccione un producto</option>');
                         data.productos.forEach(function(prod) {
-                            sel.append(`<option value="${prod.id_producto}">${prod.nombre_producto}</option>`);
+
+                            let texto = `${prod.nombre_producto} — ${prod.id_marca__nombre_marca || "Sin marca"} — ${prod.texto_unidad}`;
+
+                            sel.append(`<option value="${prod.id_producto}">${texto}</option>`);
                         });
+
                         sel.val(valorActual);
-                    } else {
-                        $('.detalle-compra select[name$="-id_producto"]').each(function() {
-                            let sel = $(this);
-                            let valorActual = sel.val();
-                            sel.empty().append('<option value="">Seleccione un producto</option>');
-                            data.productos.forEach(function(prod) {
-                                sel.append(`<option value="${prod.id_producto}">${prod.nombre_producto}</option>`);
-                            });
-                            sel.val(valorActual);
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error AJAX locales-productos:', error);
+                    });
                 }
-            });
-        } else {
-            $('#id_local').empty().append('<option value="">Seleccione un local</option>');
-            $('.detalle-compra select[name$="-id_producto"]').empty().append('<option value="">Seleccione un producto</option>');
-        }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error AJAX locales-productos:', error);
+            }
+        });
+
+    } else {
+        $('#id_local').empty().append('<option value="">Seleccione un local</option>');
+        $('.detalle-compra select[name$="-id_producto"]').empty().append('<option value="">Seleccione un producto</option>');
     }
+}
+
 
     // Cuando cambia el proveedor
     $('#id_proveedor').change(function() {
@@ -272,5 +288,46 @@ $(document).ready(function() {
             }
         });
     }
+
+    // ======================================================
+    // AGREGAR PRODUCTO AL FORMSET
+    // ======================================================
+    $(document).on("click", "#add-form", function () {
+
+        const formsetContainer = $("#formset-container");
+
+        // Obtener el TOTAL_FORMS real que usa Django
+        const totalFormsInput = $("#id_detallescompras_set-TOTAL_FORMS");
+        let formCount = parseInt(totalFormsInput.val());
+
+        // Tomamos la primera tarjeta como plantilla
+        let newForm = $(".detalle-compra").first().clone(true);
+
+        // Limpiar inputs del formulario
+        newForm.find("input, select").val("");
+
+        // Reemplazar índices del formset
+        newForm.html(
+            newForm.html().replace(
+                new RegExp(`detallescompras_set-(\\d+)`, "g"),
+                `detallescompras_set-${formCount}`
+            )
+        );
+
+        // Agregar el nuevo formulario debajo del último
+        formsetContainer.append(newForm);
+
+        // Actualizar TOTAL_FORMS
+        totalFormsInput.val(formCount + 1);
+    });
+
+
+    // ======================================================
+    // ELIMINAR PRODUCTO DEL FORMSET
+    // ======================================================
+    $(document).on("click", ".remove-form", function () {
+        $(this).closest(".detalle-compra").remove();
+    });
+
 
 });
