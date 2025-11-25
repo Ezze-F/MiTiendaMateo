@@ -20,4 +20,8 @@ urlpatterns = [
     path('cajas/eliminadas/', views.cajas_eliminadas_api, name='cajas_eliminadas_api'),
     # NUEVA VISTA API PARA ARQUEOS
     path('cajas/arqueos/', views.arqueos_api, name='arqueos_api'),
+    path('cajas/apertura/<int:caja_id>/', views.registrar_apertura_caja, name='registrar_apertura_caja'),
+    path('cajas/cierre/<int:caja_id>/', views.registrar_cierre_caja, name='registrar_cierre_caja'),
+    path('cajas/arqueo-activo/<int:caja_id>/', views.obtener_arqueo_abierto_api, name='obtener_arqueo_abierto_api'),
+
 ]

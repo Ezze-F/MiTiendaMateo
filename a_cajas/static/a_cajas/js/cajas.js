@@ -474,130 +474,115 @@ $(document).ready(function() {
         const button = $(this);
         const actionType = button.data('action-type'); // 'abrir' o 'cerrar'
         const idCaja = button.data('id');
-        const actionUrl = button.data('action-url'); 
         
-        // Obtener datos de la fila (para local y número de caja)
+        // Obtener datos de la fila
         const rowData = dataTableDisponibles.row(button.closest('tr')).data();
 
         if (button.prop('disabled')) return;
         
-        // Lógica para Abrir Caja (Muestra Modal de Apertura)
         if (actionType === 'abrir') {
-            const now = new Date();
-            // Llenar el modal de apertura
-            $('#abrir_id_caja').val(idCaja);
-            $('#abrir_local').val(rowData.id_loc_com__nombre_loc_com);
-            $('#abrir_numero_caja').val(rowData.numero_caja);
-            $('#abrir_fecha_hora').val(now.toLocaleString('es-AR')); // Solo para mostrar al usuario
-            $('#abrirCajaForm').attr('action', actionUrl); // URL de acción de apertura
-
-            // Limpiar errores previos
-            $('#abrirCajaForm').find('.form-control').removeClass('is-invalid');
-            $('#abrirCajaForm').find('.invalid-feedback').empty();
-            $('#abrir-error-alert').addClass('d-none').text('');
-
-            // Establecer foco en el monto inicial al mostrar el modal
-            $('#abrirCajaModal').on('shown.bs.modal', function () {
-                $('#abrir_efectivo_inicial').focus();
-            });
-
-            $('#abrirCajaModal').modal('show');
-        } 
-        // Lógica para Cerrar Caja (Muestra Modal de Cierre)
-        else if (actionType === 'cerrar') {
-            // Deshabilitar el botón mientras se busca el arqueo abierto
-            const originalText = button.html();
-            button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>'); 
-
-            // Ejemplo asumiendo que tienes una URL para obtener datos de arqueo por caja ID:
-            const arqueoAbiertoUrl = buildActionUrl(window.AppUrls.apiArqueoAbierto, idCaja); // ASUME QUE EXISTE ESTA URL
-
-            $.ajax({
-                url: arqueoAbiertoUrl, 
-                method: 'GET',
-                // *** AUMENTO DE TIMEOUT PARA SERVER REINICIADO ***
-                timeout: 10000, // Timeout de 10 segundos
-                success: function(response) {
-                    if (response.error) {
-                        Swal.fire('Error', response.error, 'error');
-                        // No es necesario re-habilitar aquí, lo hace el complete:
-                        // button.prop('disabled', false).html(originalText); 
-                        return;
-                    }
-                    const arqueo = response.arqueo; // Asume que Django devuelve { arqueo: {...} }
-
-                    // Llenar el modal de cierre
-                    $('#cerrar_id_arqueo').val(arqueo.id_arqueo); // CRÍTICO: ID del arqueo
-                    $('#cerrar_id_caja').val(idCaja);
-                    $('#cerrar_local').val(rowData.id_loc_com__nombre_loc_com);
-                    $('#cerrar_numero_caja').val(rowData.numero_caja);
-                    
-                    // Empleado (asumimos que Django proporciona el nombre del empleado que abrió la caja)
-                    const nombreEmpleado = arqueo.empleado_apertura_nombre || 'N/A';
-                    $('#cerrar_empleado').val(nombreEmpleado);
-
-                    // Efectivo Inicial (ReadOnly y Hidden)
-                    $('#cerrar_efectivo_inicial_readonly').val(formatCurrency(arqueo.efectivo_inicial));
-                    $('#cerrar_efectivo_inicial').val(arqueo.efectivo_inicial); // Valor numérico/string para el submit
-
-                    // Valores por defecto (si la caja se abre y se cierra el mismo día, los valores BV pueden ser 0)
-                    $('#cerrar_efectivo_final').val(''); // Vacío para que el usuario ingrese
-                    $('#cerrar_ingresos_bv').val('0.00');
-                    $('#cerrar_egresos_bv').val('0.00');
-                    
-                    $('#cerrarCajaForm').attr('action', actionUrl); // URL de acción de cierre (usa ID de caja)
-
-                    // Limpiar errores previos
-                    $('#cerrarCajaForm').find('.form-control').removeClass('is-invalid');
-                    $('#cerrarCajaForm').find('.invalid-feedback').empty();
-                    $('#cerrar-error-alert').addClass('d-none').text('');
-
-                    $('#cerrarCajaModal').modal('show');
-                },
-                error: function(xhr) {
-                    // *** Manejo de Error de la Petición (Red, Timeout, Server 500) ***
-                    console.error(`Error al obtener arqueo abierto para Caja ID ${idCaja}:`, xhr);
-                    let errorMsg = xhr.responseJSON?.error || 'No se pudo obtener el arqueo abierto. Error de red o timeout.';
-                    
-                    if (xhr.status === 0 && xhr.statusText === 'timeout') {
-                        errorMsg = 'La solicitud expiró (Timeout). El servidor no respondió a tiempo. El servidor puede estar reiniciándose.';
-                    } else if (xhr.status === 0) {
-                        errorMsg = 'Error de conexión de red. Verifique que el servidor de Django esté funcionando y accesible.';
-                    } else if (xhr.status >= 500) {
-                        errorMsg = `Error interno del servidor (${xhr.status}). Revise los logs de Django.`;
-                    }
-                    
-                    Swal.fire('Error de Carga', errorMsg, 'error');
-                },
-                complete: function() {
-                     // *** CRÍTICO: Asegurar que el botón se re-habilita SIEMPRE ***
-                     button.prop('disabled', false).html(originalText); 
-                }
-            });
+            mostrarModalApertura(idCaja, rowData);
+        } else if (actionType === 'cerrar') {
+            mostrarModalCierre(idCaja, rowData);
         }
     });
+
+    function mostrarModalApertura(idCaja, rowData) {
+        const now = new Date();
+    
+        // Llenar el modal de apertura
+        $('#abrir_id_caja').val(idCaja);
+        $('#abrir_local').val(rowData.id_loc_com__nombre_loc_com);
+        $('#abrir_numero_caja').val(rowData.numero_caja);
+        $('#abrir_fecha_hora').val(now.toLocaleString('es-AR'));
+        
+        // Limpiar errores previos
+        $('#abrirCajaForm').find('.form-control').removeClass('is-invalid');
+        $('#abrirCajaForm').find('.invalid-feedback').empty();
+        $('#abrir-error-alert').addClass('d-none').text('');
+        $('#abrir_efectivo_inicial').val('');
+
+        // Establecer foco en el monto inicial
+        $('#abrirCajaModal').on('shown.bs.modal', function () {
+            $('#abrir_efectivo_inicial').focus();
+        });
+
+        $('#abrirCajaModal').modal('show');
+    }
+
+    function mostrarModalCierre(idCaja, rowData) {
+        // Deshabilitar el botón mientras se busca el arqueo abierto
+        const button = $(`[data-id="${idCaja}"][data-action-type="cerrar"]`);
+        const originalText = button.html();
+        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>'); 
+
+        // Obtener datos del arqueo activo
+        const arqueoUrl = buildActionUrl(window.AppUrls.obtenerArqueoAbierto, idCaja);
+
+        $.ajax({
+            url: arqueoUrl,
+            method: 'GET',
+            timeout: 10000,
+            success: function(response) {
+                if (response.error) {
+                    Swal.fire('Error', response.error, 'error');
+                    return;
+                }
+
+                // Llenar el modal de cierre
+                $('#cerrar_id_caja').val(idCaja);
+                $('#cerrar_local').val(rowData.id_loc_com__nombre_loc_com);
+                $('#cerrar_numero_caja').val(rowData.numero_caja);
+                $('#cerrar_empleado').val(response.empleado_apertura_nombre);
+                $('#cerrar_efectivo_inicial_readonly').val(formatCurrency(response.monto_inicial_efectivo));
+                $('#cerrar_efectivo_inicial').val(response.monto_inicial_efectivo);
+                
+                // Calcular y mostrar ventas del período
+                calcularResumenCierre(idCaja, response.fh_apertura);
+
+                $('#cerrarCajaModal').modal('show');
+            },
+            error: function(xhr) {
+                let errorMsg = xhr.responseJSON?.error || 'No se pudo obtener el arqueo activo.';
+                Swal.fire('Error', errorMsg, 'error');
+            },
+            complete: function() {
+                button.prop('disabled', false).html(originalText);
+            }
+        });
+    }
+
+    function calcularResumenCierre(cajaId, fechaApertura) {
+        // En una implementación real, esto llamaría a una API que calcule las ventas del período
+        // Por ahora, mostramos un mensaje de carga
+        $('#resumen-ventas').html('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Calculando resumen...</div>');
+    }
 
     // Manejo del submit del formulario de Apertura de Caja
     $('#abrirCajaForm').on('submit', function(e) {
         e.preventDefault();
         const form = $(this);
+        const idCaja = $('#abrir_id_caja').val();
         const submitButton = form.find('button[type="submit"]');
         const originalButtonText = submitButton.text();
 
         submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Abriendo...');
         
         $.ajax({
-            url: form.attr('action'),
+            url: buildActionUrl(window.AppUrls.registrarAperturaCaja, idCaja),
             method: 'POST',
             data: form.serialize(),
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             success: function(response) {
-                Swal.fire('¡Éxito!', response.message || 'Caja abierta correctamente.', 'success');
-                $('#abrirCajaModal').modal('hide');
-                recargarTablas();
+                if (response.success) {
+                    Swal.fire('¡Éxito!', response.message, 'success');
+                    $('#abrirCajaModal').modal('hide');
+                    recargarTablas();
+                } else {
+                    Swal.fire('Error', response.error, 'error');
+                }
             },
             error: function(xhr) {
-                // Usamos la función unificada de manejo de errores.
                 handleFormError(xhr, '#abrirCajaForm', '#abrir-error-alert', 'Error al abrir caja.');
             },
             complete: function() {
@@ -610,42 +595,75 @@ $(document).ready(function() {
     $('#cerrarCajaForm').on('submit', function(e) {
         e.preventDefault();
         const form = $(this);
+        const idCaja = $('#cerrar_id_caja').val();
         const submitButton = form.find('button[type="submit"]');
         const originalButtonText = submitButton.text();
 
         submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Cerrando...');
         
-        // CRÍTICO: Reemplazamos la acción del formulario para apuntar a la URL de cierre
         $.ajax({
-            url: form.attr('action'), 
+            url: buildActionUrl(window.AppUrls.registrarCierreCaja, idCaja),
             method: 'POST',
             data: form.serialize(),
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             success: function(response) {
-                // --- AJUSTE CRÍTICO: CERRAR MODAL EN EL ÉXITO ---
-                $('#cerrarCajaModal').modal('hide'); 
-                Swal.fire('¡Éxito!', response.message || 'Caja cerrada y arqueo registrado correctamente.', 'success');
-                recargarTablas();
+                if (response.success) {
+                    // Mostrar resumen detallado
+                    mostrarResumenCierre(response.resumen);
+                    $('#cerrarCajaModal').modal('hide');
+                    recargarTablas();
+                } else {
+                    Swal.fire('Error', response.error, 'error');
+                }
             },
             error: function(xhr) {
-                // Usamos la función unificada de manejo de errores.
-                const defaultMsg = 'Error al cerrar caja o registrar arqueo. Revise el efectivo final.';
-                handleFormError(xhr, '#cerrarCajaForm', '#cerrar-error-alert', defaultMsg);
-                
-                // CRÍTICO: Añadir logging en consola para el desarrollador
-                console.error("Fallo al enviar el formulario de cierre de caja:", xhr);
-                
-                // Si hay un error, el modal de cierre NO se debe ocultar automáticamente, 
-                // sino mostrar el error de validación para que el usuario corrija.
+                handleFormError(xhr, '#cerrarCajaForm', '#cerrar-error-alert', 'Error al cerrar caja.');
             },
             complete: function() {
-                // RESTABLECER EL BOTÓN EN CUALQUIER CASO (éxito o error)
-                // ESTO ES LO QUE HACE DESAPARECER EL SPINNER DEL BOTÓN.
-                submitButton.prop('disabled', false).text(originalButtonText); 
+                submitButton.prop('disabled', false).text(originalButtonText);
             }
         });
     });
 
+    function mostrarResumenCierre(resumen) {
+        const resumenHTML = `
+            <div class="alert alert-info">
+                <h5>📊 Resumen de Cierre</h5>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Ventas Totales:</strong> ${formatCurrency(resumen.ventas_totales)}<br>
+                        <strong>Costo Reposición:</strong> ${formatCurrency(resumen.costo_reposicion)}<br>
+                        <strong>Ganancia Bruta:</strong> ${formatCurrency(resumen.ganancia_bruta)}<br>
+                        <strong>Ganancia Neta:</strong> ${formatCurrency(resumen.ganancia_neta)}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Efectivo Inicial:</strong> ${formatCurrency(resumen.efectivo_inicial)}<br>
+                        <strong>Efectivo Final:</strong> ${formatCurrency(resumen.efectivo_final)}<br>
+                        <strong>Diferencia:</strong> ${formatCurrency(resumen.diferencia)}<br>
+                        <strong>Ventas Realizadas:</strong> ${resumen.cantidad_ventas}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        Swal.fire({
+            title: '✅ Cierre Completado',
+            html: resumenHTML,
+            icon: 'success',
+            confirmButtonText: 'Aceptar',
+            width: '600px'
+        });
+    }
+
+    // Actualizar el objeto AppUrls en el template
+    // Agrega estas URLs en tu template base.html o en el script del template
+    //window.AppUrls = {
+    //    ...window.AppUrls,
+    //    registrarAperturaCaja: "{% url 'a_cajas:registrar_apertura_caja' caja_id=0 %}".replace('/0/', '/'),
+    //    registrarCierreCaja: "{% url 'a_cajas:registrar_cierre_caja' caja_id=0 %}".replace('/0/', '/'),
+    //    obtenerArqueoAbierto: "{% url 'a_cajas:obtener_arqueo_abierto_api' caja_id=0 %}".replace('/0/', '/'),
+    //};
     // ============================================================
     // 9. DataTable: Arqueo de Cajas (Historial de cierres)
     // ============================================================
