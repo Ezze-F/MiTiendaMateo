@@ -1,0 +1,53 @@
+{% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h3>Compras pagadas pendientes de cargar a stock</h3>
+    <hr>
+
+    {% if not compras %}
+        <div class="alert alert-info">
+            No hay compras pendientes para cargar en stock.
+        </div>
+    {% else %}
+        {% for compra in compras %}
+        <form class="form-cargar-stock" data-id="{{ compra.id_compra }}">
+            {% csrf_token %}
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    Compra #{{ compra.id_compra }} — {{ compra.cuit_proveedor.nombre_prov }}
+                </div>
+                <div class="card-body">
+                    <p><b>Local:</b> {{ compra.id_loc_com.nombre_loc_com }}</p>
+                    <p><b>Monto total:</b> ${{ compra.monto_total }}</p>
+                    <h6>Productos</h6>
+                    <hr>
+                    {% for det in compra.detallescompras_set.all %}
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            {{ det.id_producto.nombre_producto }} — Cant: {{ det.cantidad }}
+                        </div>
+                        <div class="col-6">
+                            <input type="date" name="vto_{{ det.id_detalle_compra }}" class="form-control" required>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <button 
+                        type="button" 
+                        class="btn btn-success btn-procesar"
+                        data-url="{% url 'a_stock:procesar_compra_en_stock' compra.id_compra %}">
+                        Cargar esta compra al Stock
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'a_stock/js/cargar_compras.js' %}"></script>
+{% endblock %}
+

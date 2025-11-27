@@ -12,6 +12,24 @@ $(document).ready(function() {
     // 1. Inicialización y Configuración
     // ============================================================
     
+    // Función para cargar datos automáticos del arqueo
+    const cargarDatosArqueoAutomaticos = (cajaId) => {
+        return new Promise((resolve, reject) => {
+            const arqueoUrl = buildActionUrl(window.AppUrls.datosArqueoActual, cajaId);
+            
+            $.ajax({
+                url: arqueoUrl,
+                method: 'GET',
+                success: function(response) {
+                    resolve(response);
+                },
+                error: function(xhr) {
+                    reject(xhr.responseJSON?.error || 'Error al cargar datos del arqueo');
+                }
+            });
+        });
+    };
+
     // Función para recargar ambas tablas
     const recargarTablas = () => {
         if (dataTableDisponibles) dataTableDisponibles.ajax.reload(null, false);
@@ -472,198 +490,77 @@ $(document).ready(function() {
     $(document).on('click', '#dataTableCajasDisponibles .btn-caja-estado', function(e) {
         e.preventDefault();
         const button = $(this);
-        const actionType = button.data('action-type'); // 'abrir' o 'cerrar'
+        const actionType = button.data('action-type');
         const idCaja = button.data('id');
+        const actionUrl = button.data('action-url'); 
         
-        // Obtener datos de la fila
         const rowData = dataTableDisponibles.row(button.closest('tr')).data();
 
         if (button.prop('disabled')) return;
         
         if (actionType === 'abrir') {
-            mostrarModalApertura(idCaja, rowData);
-        } else if (actionType === 'cerrar') {
-            mostrarModalCierre(idCaja, rowData);
+            const now = new Date();
+            // Llenar el modal de apertura
+            $('#abrir_id_caja').val(idCaja);
+            $('#abrir_local').val(rowData.id_loc_com__nombre_loc_com);
+            $('#abrir_numero_caja').val(rowData.numero_caja);
+            $('#abrir_fecha_hora').val(now.toLocaleString('es-AR'));
+            $('#abrirCajaForm').attr('action', actionUrl);
+
+            // Limpiar errores previos
+            $('#abrirCajaForm').find('.form-control').removeClass('is-invalid');
+            $('#abrirCajaForm').find('.invalid-feedback').empty();
+            $('#abrir-error-alert').addClass('d-none').text('');
+
+            $('#abrirCajaModal').modal('show');
+        } 
+        else if (actionType === 'cerrar') {
+            const originalText = button.html();
+            button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>'); 
+
+            // CARGAR DATOS AUTOMÁTICOS DEL ARQUEO
+            cargarDatosArqueoAutomaticos(idCaja)
+                .then(datosArqueo => {
+                    console.log("Datos del arqueo cargados:", datosArqueo); // Para debugging
+                    
+                    // Llenar el modal de cierre con datos automáticos
+                    $('#cerrar_id_arqueo').val(datosArqueo.id_arqueo);
+                    $('#cerrar_id_caja').val(idCaja);
+                    $('#cerrar_local').val(rowData.id_loc_com__nombre_loc_com);
+                    $('#cerrar_numero_caja').val(rowData.numero_caja);
+                    
+                    // Datos automáticos calculados
+                    $('#cerrar_efectivo_inicial_readonly').val(formatCurrency(datosArqueo.monto_inicial_efectivo));
+                    $('#cerrar_efectivo_inicial').val(datosArqueo.monto_inicial_efectivo);
+                    
+                    // Mostrar resumen automático
+                    $('#resumen_ingresos').text(formatCurrency(datosArqueo.total_ingresos_efectivo));
+                    $('#resumen_egresos').text(formatCurrency(datosArqueo.total_egresos_efectivo));
+                    $('#resumen_saldo_esperado').text(formatCurrency(datosArqueo.saldo_esperado_efectivo));
+                    $('#resumen_ventas').text(datosArqueo.ventas_realizadas || 0);
+                    
+                    // Establecer el saldo esperado como valor sugerido para el monto final
+                    $('#cerrar_efectivo_final').val(datosArqueo.saldo_esperado_efectivo.toFixed(2));
+                    
+                    $('#cerrarCajaForm').attr('action', actionUrl);
+
+                    // Limpiar errores previos
+                    $('#cerrarCajaForm').find('.form-control').removeClass('is-invalid');
+                    $('#cerrarCajaForm').find('.invalid-feedback').empty();
+                    $('#cerrar-error-alert').addClass('d-none').text('');
+
+                    $('#cerrarCajaModal').modal('show');
+                })
+                .catch(error => {
+                    console.error("Error al cargar datos del arqueo:", error);
+                    Swal.fire('Error', error, 'error');
+                })
+                .finally(() => {
+                    button.prop('disabled', false).html(originalText);
+                });
         }
     });
 
-    function mostrarModalApertura(idCaja, rowData) {
-        const now = new Date();
-    
-        // Llenar el modal de apertura
-        $('#abrir_id_caja').val(idCaja);
-        $('#abrir_local').val(rowData.id_loc_com__nombre_loc_com);
-        $('#abrir_numero_caja').val(rowData.numero_caja);
-        $('#abrir_fecha_hora').val(now.toLocaleString('es-AR'));
-        
-        // Limpiar errores previos
-        $('#abrirCajaForm').find('.form-control').removeClass('is-invalid');
-        $('#abrirCajaForm').find('.invalid-feedback').empty();
-        $('#abrir-error-alert').addClass('d-none').text('');
-        $('#abrir_efectivo_inicial').val('');
-
-        // Establecer foco en el monto inicial
-        $('#abrirCajaModal').on('shown.bs.modal', function () {
-            $('#abrir_efectivo_inicial').focus();
-        });
-
-        $('#abrirCajaModal').modal('show');
-    }
-
-    function mostrarModalCierre(idCaja, rowData) {
-        // Deshabilitar el botón mientras se busca el arqueo abierto
-        const button = $(`[data-id="${idCaja}"][data-action-type="cerrar"]`);
-        const originalText = button.html();
-        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>'); 
-
-        // Obtener datos del arqueo activo
-        const arqueoUrl = buildActionUrl(window.AppUrls.obtenerArqueoAbierto, idCaja);
-
-        $.ajax({
-            url: arqueoUrl,
-            method: 'GET',
-            timeout: 10000,
-            success: function(response) {
-                if (response.error) {
-                    Swal.fire('Error', response.error, 'error');
-                    return;
-                }
-
-                // Llenar el modal de cierre
-                $('#cerrar_id_caja').val(idCaja);
-                $('#cerrar_local').val(rowData.id_loc_com__nombre_loc_com);
-                $('#cerrar_numero_caja').val(rowData.numero_caja);
-                $('#cerrar_empleado').val(response.empleado_apertura_nombre);
-                $('#cerrar_efectivo_inicial_readonly').val(formatCurrency(response.monto_inicial_efectivo));
-                $('#cerrar_efectivo_inicial').val(response.monto_inicial_efectivo);
-                
-                // Calcular y mostrar ventas del período
-                calcularResumenCierre(idCaja, response.fh_apertura);
-
-                $('#cerrarCajaModal').modal('show');
-            },
-            error: function(xhr) {
-                let errorMsg = xhr.responseJSON?.error || 'No se pudo obtener el arqueo activo.';
-                Swal.fire('Error', errorMsg, 'error');
-            },
-            complete: function() {
-                button.prop('disabled', false).html(originalText);
-            }
-        });
-    }
-
-    function calcularResumenCierre(cajaId, fechaApertura) {
-        // En una implementación real, esto llamaría a una API que calcule las ventas del período
-        // Por ahora, mostramos un mensaje de carga
-        $('#resumen-ventas').html('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Calculando resumen...</div>');
-    }
-
-    // Manejo del submit del formulario de Apertura de Caja
-    $('#abrirCajaForm').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
-        const idCaja = $('#abrir_id_caja').val();
-        const submitButton = form.find('button[type="submit"]');
-        const originalButtonText = submitButton.text();
-
-        submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Abriendo...');
-        
-        $.ajax({
-            url: buildActionUrl(window.AppUrls.registrarAperturaCaja, idCaja),
-            method: 'POST',
-            data: form.serialize(),
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire('¡Éxito!', response.message, 'success');
-                    $('#abrirCajaModal').modal('hide');
-                    recargarTablas();
-                } else {
-                    Swal.fire('Error', response.error, 'error');
-                }
-            },
-            error: function(xhr) {
-                handleFormError(xhr, '#abrirCajaForm', '#abrir-error-alert', 'Error al abrir caja.');
-            },
-            complete: function() {
-                submitButton.prop('disabled', false).text(originalButtonText);
-            }
-        });
-    });
-
-    // Manejo del submit del formulario de Cierre de Caja
-    $('#cerrarCajaForm').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
-        const idCaja = $('#cerrar_id_caja').val();
-        const submitButton = form.find('button[type="submit"]');
-        const originalButtonText = submitButton.text();
-
-        submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Cerrando...');
-        
-        $.ajax({
-            url: buildActionUrl(window.AppUrls.registrarCierreCaja, idCaja),
-            method: 'POST',
-            data: form.serialize(),
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            success: function(response) {
-                if (response.success) {
-                    // Mostrar resumen detallado
-                    mostrarResumenCierre(response.resumen);
-                    $('#cerrarCajaModal').modal('hide');
-                    recargarTablas();
-                } else {
-                    Swal.fire('Error', response.error, 'error');
-                }
-            },
-            error: function(xhr) {
-                handleFormError(xhr, '#cerrarCajaForm', '#cerrar-error-alert', 'Error al cerrar caja.');
-            },
-            complete: function() {
-                submitButton.prop('disabled', false).text(originalButtonText);
-            }
-        });
-    });
-
-    function mostrarResumenCierre(resumen) {
-        const resumenHTML = `
-            <div class="alert alert-info">
-                <h5>📊 Resumen de Cierre</h5>
-                <hr>
-                <div class="row">
-                    <div class="col-md-6">
-                        <strong>Ventas Totales:</strong> ${formatCurrency(resumen.ventas_totales)}<br>
-                        <strong>Costo Reposición:</strong> ${formatCurrency(resumen.costo_reposicion)}<br>
-                        <strong>Ganancia Bruta:</strong> ${formatCurrency(resumen.ganancia_bruta)}<br>
-                        <strong>Ganancia Neta:</strong> ${formatCurrency(resumen.ganancia_neta)}
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Efectivo Inicial:</strong> ${formatCurrency(resumen.efectivo_inicial)}<br>
-                        <strong>Efectivo Final:</strong> ${formatCurrency(resumen.efectivo_final)}<br>
-                        <strong>Diferencia:</strong> ${formatCurrency(resumen.diferencia)}<br>
-                        <strong>Ventas Realizadas:</strong> ${resumen.cantidad_ventas}
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        Swal.fire({
-            title: '✅ Cierre Completado',
-            html: resumenHTML,
-            icon: 'success',
-            confirmButtonText: 'Aceptar',
-            width: '600px'
-        });
-    }
-
-    // Actualizar el objeto AppUrls en el template
-    // Agrega estas URLs en tu template base.html o en el script del template
-    //window.AppUrls = {
-    //    ...window.AppUrls,
-    //    registrarAperturaCaja: "{% url 'a_cajas:registrar_apertura_caja' caja_id=0 %}".replace('/0/', '/'),
-    //    registrarCierreCaja: "{% url 'a_cajas:registrar_cierre_caja' caja_id=0 %}".replace('/0/', '/'),
-    //    obtenerArqueoAbierto: "{% url 'a_cajas:obtener_arqueo_abierto_api' caja_id=0 %}".replace('/0/', '/'),
-    //};
     // ============================================================
     // 9. DataTable: Arqueo de Cajas (Historial de cierres)
     // ============================================================
@@ -677,7 +574,7 @@ $(document).ready(function() {
 
         dataTableArqueos = $('#dataTableArqueos').DataTable({
             "processing": true,
-            "serverSide": true, 
+            "serverSide": false, 
             "ajax": {
                 "url": window.AppUrls.apiArqueos, // CRÍTICO: URL de la API de Django
                 "type": "GET",
@@ -896,4 +793,45 @@ $(document).ready(function() {
     if ($('#arqueos-tab').hasClass('active')) {
         initArqueosDataTable();
     }
+
+    $('#cerrarCajaForm').on('submit', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        
+        // Deshabilitar botón para evitar doble submit
+        const submitButton = form.find('button[type="submit"]');
+        const originalButtonText = submitButton.text();
+        submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Cerrando...');
+
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(response) {
+                Swal.fire('¡Éxito!', response.message || 'Caja cerrada correctamente.', 'success');
+                $('#cerrarCajaModal').modal('hide');
+                recargarTablas();
+            },
+            error: function(xhr) {
+                handleFormError(xhr, '#cerrarCajaForm', '#cerrar-error-alert', 'Error al cerrar la caja.');
+            },
+            complete: function() {
+                // Re-habilitar botón
+                submitButton.prop('disabled', false).text(originalButtonText);
+            }
+        });
+    });
+    // ============================================================
+    // 12. Limpieza de modales
+    // ============================================================
+    
+    // Limpieza de errores al cerrar el modal de Cierre
+    $('#cerrarCajaModal').on('hidden.bs.modal', function () {
+        const form = $('#cerrarCajaForm');
+        form[0].reset();
+        form.find('.form-control').removeClass('is-invalid');
+        form.find('.invalid-feedback').empty();
+        $('#cerrar-error-alert').addClass('d-none').text('');
+    });
 });

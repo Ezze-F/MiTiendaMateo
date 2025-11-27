@@ -31,12 +31,12 @@ class PagosVentasAdmin(admin.ModelAdmin):
 @admin.register(MovimientosFinancieros)
 class MovimientosFinancierosAdmin(admin.ModelAdmin):
     # Corregido: El FK que apunta al ciclo de caja es 'id_arqueo', NO 'id_caja'.
-    list_display = ('id_movimiento', 'id_arqueo', 'tipo_movimiento', 'concepto', 'monto', 'fh_movimiento', 'borrado_movimiento')
-    list_filter = ('tipo_movimiento', 'borrado_movimiento', 'id_arqueo', 'id_bv') # Usamos id_arqueo
+    list_display = ('id_movimiento', 'id_compra', 'id_venta',  'id_arqueo', 'tipo_movimiento', 'concepto', 'monto', 'fh_movimiento', 'borrado_movimiento')
+    list_filter = ('tipo_movimiento', 'borrado_movimiento', 'id_arqueo', 'id_bv', 'id_compra', 'id_venta') # Usamos id_arqueo
     search_fields = ('concepto',)
-    raw_id_fields = ('id_arqueo', 'id_bv',) # Usamos id_arqueo
+    raw_id_fields = ('id_arqueo', 'id_bv','id_compra', 'id_venta') # Usamos id_arqueo
     # 'id_arqueo' reemplaza a 'id_caja'
-    list_select_related = ('id_arqueo', 'id_bv',) 
+    list_select_related = ('id_arqueo', 'id_bv','id_compra', 'id_venta') 
 
 
 # Registrar y corregir ArqueosCajaAdmin 

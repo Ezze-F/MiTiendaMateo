@@ -313,10 +313,29 @@
                         <label class="form-label">Efectivo inicial (Apertura)</label>
                         <input type="text" class="form-control" id="cerrar_efectivo_inicial_readonly" readonly>
                         <!-- Hidden input para enviar el valor inicial al backend -->
-                        <input type="hidden" id="cerrar_efectivo_inicial" name="monto_inicial_efectivo">
+                        <input type="hidden" id="cerrar_efectivo_inicial" name="efectivo_inicial_apertura">
                     </div>
 
                     <!-- Input de Efectivo Final (Físico) - Agregado step="0.01" y min="0" -->
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">Resumen Automático del Ciclo:</h6>
+                        <div class="row small">
+                            <div class="col-6">
+                                <strong>Ingresos por Ventas:</strong><br>
+                                <span id="resumen_ingresos">$0.00</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Egresos por Compras:</strong><br>
+                                <span id="resumen_egresos">$0.00</span>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <strong>Saldo Esperado en Sistema:</strong><br>
+                                <span id="resumen_saldo_esperado">$0.00</span>
+                                <br>
+                                <small class="text-muted">(Ventas: <span id="resumen_ventas">0</span> transacciones)</small>
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label for="cerrar_efectivo_final" class="form-label">Efectivo final (Físico, a ingresar)</label>
                         <input type="number" step="0.01" min="0" class="form-control" id="cerrar_efectivo_final" name="monto_final_efectivo" required>
@@ -336,12 +355,7 @@
                         <input type="number" step="0.01" min="0" class="form-control" id="cerrar_egresos_bv" name="egresos_bv" value="0.00" required>
                         <div class="invalid-feedback" id="error-egresos_bv"></div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Resumen del Período</label>
-                        <div id="resumen-ventas" class="border p-2 bg-light">
-                            <small class="text-muted">El resumen se calculará al confirmar el cierre</small>
-                        </div>
-                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -366,11 +380,12 @@ window.AppUrls = {
     // ¡Asegúrate de que estas URLs coincidan con tus patrones de Django!
     abrirCaja: "{% url 'a_cajas:abrir_caja' caja_id=0 %}".replace('/0/', '/'),
     // Nota: Aunque el formulario usa id_arqueo, la URL se construye con caja_id=0 para el placeholder.
-    cerrarCaja: "{% url 'a_cajas:cerrar_caja' caja_id=0 %}".replace('/0/', '/'),
+    cerrarCaja: "{% url 'a_cajas:registrar_cierre_arqueo' caja_id=0 %}".replace('/0/', '/'),
     modificarCaja: "{% url 'a_cajas:modificar_caja' caja_id=0 %}".replace('/0/', '/'),
     borrarCaja: "{% url 'a_cajas:borrar_caja' caja_id=0 %}".replace('/0/', '/'),
     recuperarCaja: "{% url 'a_cajas:recuperar_caja' caja_id=0 %}".replace('/0/', '/'),
-    
+    datosArqueoActual: "{% url 'a_cajas:datos_arqueo_actual_api' caja_id=0 %}".replace('/0/', '/'),
+
     // URLs de API (endpoints de DataTables)
     apiCajasDisponibles: "{% url 'a_cajas:cajas_disponibles_api' %}", 
     apiCajasEliminadas: "{% url 'a_cajas:cajas_eliminadas_api' %}", 
@@ -378,11 +393,7 @@ window.AppUrls = {
 
     // URL para el registro del formulario (manejado por JS)
     registrarCaja: "{% url 'a_cajas:registrar_caja' %}", 
-
-    obtenerArqueoAbierto: "{% url 'a_cajas:obtener_arqueo_abierto_api' caja_id=0 %}".replace('/0/', '/'),
-    registrarAperturaCaja: "{% url 'a_cajas:registrar_apertura_caja' caja_id=0 %}".replace('/0/', '/'),
-    registrarCierreCaja: "{% url 'a_cajas:registrar_cierre_caja' caja_id=0 %}".replace('/0/', '/'),
-
+    
 };
 </script>
 

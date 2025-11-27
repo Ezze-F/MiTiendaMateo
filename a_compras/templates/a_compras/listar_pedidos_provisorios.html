@@ -10,6 +10,12 @@
             <h4 class="mb-4">Pedidos Provisorios</h4>
         </div>
         <div class="col-6 text-end">
+
+            <!--  BOTÓN NUEVO: Generar pedidos automáticamente -->
+            <a href="{% url 'a_compras:generar_pedidos_automaticos' %}" class="btn btn-primary me-2">
+                <i class="fas fa-robot me-1"></i> Generar pedidos automáticamente
+            </a>
+
             <a href="{% url 'a_compras:listar_compras' %}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left me-2"></i> Volver a Compras
             </a>
@@ -46,9 +52,19 @@
                             <td>${{ pedido.total_estimado|default:"0.00" }}</td>
                             <td>{{ pedido.estado_pedido_prov }}</td>
                             <td>
-                                <a href="#" class="btn btn-info btn-sm">
+                                <!-- 🔵 Ver detalle -->
+                                <a href="{% url 'a_compras:detalle_pedido_provisorio' pk=pedido.id_pedido_prov %}" class="btn btn-info btn-sm">
                                     <i class="fas fa-eye"></i> Ver detalle
                                 </a>
+
+
+                                <!-- 🔵 Confirmar compra -->
+                                <form method="post" action="{% url 'a_compras:confirmar_pedido_provisorio' pk=pedido.id_pedido_prov %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('¿Confirma convertir este pedido provisorio en compra? Esto actualizará stock y creará lotes.')">
+                                        <i class="fas fa-check"></i> Confirmar Compra
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                         {% empty %}
@@ -68,7 +84,6 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Solo inicializar DataTable si hay filas con datos reales
     if ($('#dataTablePedidos tbody tr').length > 0 && 
         !$('#dataTablePedidos tbody tr td').first().attr('colspan')) {
         setTimeout(function() {

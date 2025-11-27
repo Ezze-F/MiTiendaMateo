@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import obtener_stock_minimo
 
 app_name = 'a_central'
 
@@ -44,8 +45,10 @@ urlpatterns = [
     path('proveedores/modificar/<int:proveedor_id>/', views.modificar_proveedor, name='modificar_proveedor'),
     path('proveedores/borrar/<int:proveedor_id>/', views.borrar_proveedor, name='borrar_proveedor'),
     path('proveedores/recuperar/<int:proveedor_id>/', views.recuperar_proveedor, name='recuperar_proveedor'),
+
+
     # ==================================
-    # RUTAS DE PROVEEDORES
+    # RUTAS DE LOCALES COMERCIALES
     # ==================================
     path('locales/', views.listar_locales, name='listar_locales'),
     path('locales/disponibles/', views.locales_disponibles_api, name='locales_disponibles_api'),
@@ -64,6 +67,8 @@ urlpatterns = [
     path('productos/modificar/<int:producto_id>/', views.modificar_producto, name='modificar_producto'),
     path('productos/borrar/<int:producto_id>/', views.borrar_producto, name='borrar_producto'),
     path('productos/recuperar/<int:producto_id>/', views.recuperar_producto, name='recuperar_producto'),
+    path('stock/minimo/<int:producto_id>/<int:id_loc_com>/', views.obtener_stock_minimo, name='obtener_stock_minimo'),
+
     # ==================================
     # RUTAS DE PRODUCTOS
     # ==================================

@@ -2,7 +2,8 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User, Group
 from .models import Empleados, Provincias, Marcas, Proveedores, LocalesComerciales, Productos, BilleterasVirtuales
-
+from a_stock.models import Proveedoresxproductos
+from django.forms import modelformset_factory
 
 class EmpleadoRegistroForm(forms.Form):
     # ... (Campos de formulario sin modificar) ...
@@ -202,6 +203,7 @@ class MarcaForm(forms.ModelForm):
 # FORMULARIO PROVEEDORES
 # ===============================================
 
+
 class ProveedorRegistroForm(forms.Form):
     cuit_prov = forms.CharField(
         max_length=15,
@@ -238,6 +240,25 @@ class ProveedorRegistroForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
 
+    locales_comerciales = forms.ModelMultipleChoiceField(
+        queryset=LocalesComerciales.objects.all(),
+        required=True,
+        label="Locales Comerciales que atiende",
+        # Usamos CheckboxSelectMultiple para mejor UX en selección múltiple
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}) 
+        # O puedes usar forms.SelectMultiple si prefieres un selector grande (requiere CTRL para seleccionar varios)
+    )
+    
+    productos_vendidos = forms.ModelMultipleChoiceField(
+        # Usamos Productos.objects.all() o Productos.objects.filter(borrado_prod=False) 
+        # para mostrar solo los activos (según el manager 'objects')
+        queryset=Productos.objects.all(), 
+        required=False, # Podría ser opcional que el proveedor tenga productos asociados al registrarlo
+        label="Productos que vende",
+        # Usamos SelectMultiple, pero podrías usar CheckboxSelectMultiple si la lista es corta
+        widget=forms.SelectMultiple(attrs={'class': 'form-select select2-productos-multi', 'data-placeholder': 'Seleccione los productos'}) 
+    )
+    
     def clean_cuit_prov(self):
         cuit = self.cleaned_data.get('cuit_prov')
         if Proveedores.all_objects.filter(cuit_prov=cuit).exists():
@@ -249,6 +270,15 @@ class ProveedorRegistroForm(forms.Form):
         if email and Proveedores.all_objects.filter(email_prov=email).exists():
             raise ValidationError("Ya existe un proveedor con este Email (activo o inactivo).")
         return email
+
+class ProveedorProductoForm(forms.ModelForm):
+    class Meta:
+        model = Proveedoresxproductos
+        fields = ['id_producto', 'costo_compra']
+        widgets = {
+            'id_producto': forms.Select(attrs={'class': 'form-select select2-productos', 'style': 'width:100%'}),
+            'costo_compra': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Precio de compra'})
+        }
 
 
 # ===============================================
@@ -335,12 +365,6 @@ class ProductoRegistroForm(forms.Form):
         required=True,
         label='Precio Unitario',
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
-    )
-    
-    fecha_venc_prod = forms.DateField(
-        required=False,
-        label='Fecha de Vencimiento',
-        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
     )
     
     # NUEVOS CAMPOS

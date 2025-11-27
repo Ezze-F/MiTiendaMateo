@@ -1,16 +1,18 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_POST, require_GET 
 from django.db import IntegrityError, transaction
 from django.contrib import messages
 from django.db.models import Sum, Q, F 
 from django.utils import timezone 
 from decimal import Decimal, InvalidOperation 
-from .models import Cajas, ArqueoCaja, PagosVentas, PagosCompras 
+from .models import Cajas, ArqueoCaja, PagosVentas, PagosCompras, MovimientosFinancieros
+from a_compras.models import Compras
 from .forms import CajaForm
 from a_ventas.models import Ventas
-from a_compras.models import Compras
+import logging
+
+logger = logging.getLogger(__name__)
 
 # IMPORTACIONES ASUMIDAS (Asegúrate que estas importaciones sean correctas en tu proyecto)
 try:
@@ -42,7 +44,7 @@ def abrir_caja(request, caja_id):
             raise ValueError("La caja ya se encuentra abierta.")
         
         # 2. Obtener y validar Monto Inicial
-        monto_str = request.POST.get('monto_inicial_efectivo', '0')
+        monto_str = request.POST.get('efectivo_inicial', '0')
         if not monto_str:
             raise ValueError("El monto inicial de efectivo es requerido.")
             
@@ -108,33 +110,39 @@ def abrir_caja(request, caja_id):
 @require_POST
 def cerrar_caja(request, caja_id):
     """
-    Función de cierre original (solo cambio de estado). 
-    Ahora se recomienda usar 'registrar_cierre_arqueo' para el cierre financiero.
+    Función de cierre simple (solo cambio de estado sin arqueo).
     """
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     caja = get_object_or_404(Cajas, pk=caja_id)
     
-    # Si la caja tiene un arqueo abierto, no debería cerrarse solo con este método.
-    if ArqueoCaja.objects.filter(id_caja=caja, fh_cierre__isnull=True).exists():
-        error_message = f"La Caja N°{caja.numero_caja} tiene un arqueo pendiente. Debe realizar el arqueo final (registrar_cierre_arqueo)."
-        if is_ajax:
-            return JsonResponse({'error': error_message}, status=400)
-        else:
-            messages.warning(request, error_message)
-            return redirect('a_cajas:listar_cajas')
+    try:
+        # Si la caja tiene un arqueo abierto, no permitir cierre simple
+        if ArqueoCaja.objects.filter(id_caja=caja, fh_cierre__isnull=True).exists():
+            error_message = f"La Caja N°{caja.numero_caja} tiene un arqueo pendiente. Use 'Realizar Arqueo' para el cierre completo."
+            if is_ajax:
+                return JsonResponse({'error': error_message}, status=400)
+            else:
+                messages.warning(request, error_message)
+                return redirect('a_cajas:listar_cajas')
 
-    if caja.cerrar():
-        message = f"La Caja N°{caja.numero_caja} ha sido cerrada."
-        if is_ajax:
-            return JsonResponse({'message': message}, status=200)
+        # Cerrar la caja si no hay arqueo activo
+        if caja.cerrar():
+            message = f"La Caja N°{caja.numero_caja} ha sido cerrada (sin arqueo)."
+            if is_ajax:
+                return JsonResponse({'message': message}, status=200)
+            else:
+                messages.success(request, message)
         else:
-            messages.success(request, message)
-    else:
-        # Se obtiene el estado actual para un mensaje de error más claro
-        estado_display = "Abierta" if caja.caja_abierta else "Cerrada" 
-        error_message = f"No se pudo cerrar la Caja N°{caja.numero_caja}. Estado actual: {estado_display}."
+            error_message = f"No se pudo cerrar la Caja N°{caja.numero_caja}."
+            if is_ajax:
+                return JsonResponse({'error': error_message}, status=400)
+            else:
+                messages.error(request, error_message)
+
+    except Exception as e:
+        error_message = f"Error al cerrar la caja: {str(e)}"
         if is_ajax:
-            return JsonResponse({'error': error_message}, status=400)
+            return JsonResponse({'error': error_message}, status=500)
         else:
             messages.error(request, error_message)
 
@@ -269,11 +277,11 @@ def recuperar_caja(request, caja_id):
 # Funciones API (Respuestas JSON) 
 # ======================================================
 
+@require_GET
 def datos_arqueo_actual_api(request, caja_id):
     """
     Retorna los datos de transacciones del ciclo de caja actualmente ABIERTO
-    para una caja específica, para ser usados en el formulario de cierre/arqueo.
-    Calcula ingresos y egresos en EFECTIVO.
+    para una caja específica, calculando automáticamente ingresos y egresos.
     """
     try:
         # 1. Obtener la caja
@@ -292,25 +300,40 @@ def datos_arqueo_actual_api(request, caja_id):
         apertura = arqueo_activo.fh_apertura
         ahora = timezone.now()
         
-        # 3. Calcular Ingresos en EFECTIVO (Pagos de Ventas donde id_bv es NULL)
-        # Se asume que id_bv__isnull=True significa pago en efectivo.
-        ingresos_efectivo = PagosVentas.objects.filter(
-            id_venta__fh_venta__range=(apertura, ahora), # Rango de apertura a la hora actual
-            id_bv__isnull=True, # Solo pagos en efectivo
-            id_caja=caja,       # Pagos asociados a esta caja
-            borrado_pv=False
-        ).aggregate(total=Sum('monto'))['total'] or 0.00
+        # 3. Calcular INGRESOS en EFECTIVO (Ventas realizadas en esta caja durante el ciclo)
+        ingresos_efectivo = Decimal('0.00')
+        ventas_ciclo = Ventas.objects.filter(
+            id_caja=caja,
+            fh_venta__range=(apertura, ahora),
+            borrado_venta=False
+        )
         
-        # 4. Calcular Egresos en EFECTIVO (Pagos de Compras donde id_bv es NULL)
-        egresos_efectivo = PagosCompras.objects.filter(
-            id_compra__fh_compra__range=(apertura, ahora), # Rango de apertura a la hora actual
-            id_bv__isnull=True, # Solo pagos en efectivo
-            id_caja=caja,        # Pagos asociados a esta caja
-            borrado_pc=False
-        ).aggregate(total=Sum('monto'))['total'] or 0.00
+        for venta in ventas_ciclo:
+            ingresos_efectivo += venta.total_venta
+
+        # 4. Calcular EGRESOS en EFECTIVO (Compras pagadas en efectivo durante el ciclo)
+        egresos_efectivo = Decimal('0.00')
+        
+        # Buscar compras pagadas en efectivo durante este ciclo
+        compras_ciclo = Compras.objects.filter(
+            fecha_hora_compra__range=(apertura, ahora),
+            situacion_compra="Completada"
+        )
+        
+        for compra in compras_ciclo:
+            # Verificar si tiene pago en efectivo (MovimientosFinancieros con medio_pago='EFECTIVO')
+            movimientos_efectivo = MovimientosFinancieros.objects.filter(
+                id_compra=compra,
+                medio_pago='EFECTIVO',
+                tipo_movimiento='EGRESO',
+                fh_movimiento__range=(apertura, ahora)
+            )
+            
+            for movimiento in movimientos_efectivo:
+                egresos_efectivo += movimiento.monto
 
         # 5. Calcular Saldo Esperado (en efectivo)
-        monto_inicial = float(arqueo_activo.monto_inicial_efectivo)
+        monto_inicial = arqueo_activo.monto_inicial_efectivo
         saldo_esperado = monto_inicial + ingresos_efectivo - egresos_efectivo
 
         data = {
@@ -318,24 +341,27 @@ def datos_arqueo_actual_api(request, caja_id):
             'caja_id': caja.id_caja,
             'numero_caja': caja.numero_caja,
             'local': str(caja.id_loc_com),
-            'fh_apertura': apertura.strftime('%Y-%m-%d %H:%M:%S'), # Formato estándar para JS
-            'monto_inicial_efectivo': monto_inicial,
+            'fh_apertura': apertura.strftime('%Y-%m-%d %H:%M:%S'),
+            'monto_inicial_efectivo': float(monto_inicial),
             'total_ingresos_efectivo': float(ingresos_efectivo),
             'total_egresos_efectivo': float(egresos_efectivo),
             'saldo_esperado_efectivo': float(saldo_esperado),
+            'ventas_realizadas': ventas_ciclo.count(),
+            'compras_pagadas_efectivo': len([c for c in compras_ciclo if MovimientosFinancieros.objects.filter(
+                id_compra=c, medio_pago='EFECTIVO').exists()])
         }
             
         return JsonResponse(data)
 
     except Exception as e:
+        logger.error(f"Error en datos_arqueo_actual_api: {str(e)}")
         return JsonResponse({'error': f"Error al obtener datos del arqueo actual: {str(e)}"}, status=500)
 
 
 @require_POST
 def registrar_cierre_arqueo(request, caja_id):
     """
-    Registra el monto final del arqueo, calcula la diferencia y cierra el ciclo de caja.
-    Recibe 'monto_final_efectivo' en el POST.
+    Registra el cierre automático de caja calculando ingresos y egresos reales.
     """
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     caja = get_object_or_404(Cajas, pk=caja_id)
@@ -343,20 +369,9 @@ def registrar_cierre_arqueo(request, caja_id):
     try:
         # 1. Validar que la caja esté abierta
         if not caja.caja_abierta:
-            raise ValueError(f"La Caja N°{caja.numero_caja} ya está cerrada. No se puede registrar el arqueo.")
+            raise ValueError(f"La Caja N°{caja.numero_caja} ya está cerrada.")
 
-        # 2. Obtener el monto final del POST y validarlo
-        monto_final_str = request.POST.get('monto_final_efectivo')
-        if not monto_final_str:
-             raise ValueError("El monto final de efectivo es requerido.")
-             
-        # Usar Decimal para cálculos precisos
-        try:
-            monto_final_efectivo = Decimal(monto_final_str.replace(',', '.'))
-        except InvalidOperation:
-            raise ValueError("Formato de monto final inválido.")
-        
-        # 3. Encontrar el arqueo activo
+        # 2. Encontrar el arqueo activo
         arqueo_activo = ArqueoCaja.objects.filter(
             id_caja=caja, 
             fh_cierre__isnull=True
@@ -365,86 +380,132 @@ def registrar_cierre_arqueo(request, caja_id):
         if not arqueo_activo:
             raise Exception(f"Error interno: No se encontró un ciclo de arqueo activo para la Caja N°{caja.numero_caja}.")
 
-        # 4. Recalcular movimientos y saldo esperado
+        # 3. Recalcular movimientos automáticamente
         apertura = arqueo_activo.fh_apertura
         ahora = timezone.now()
         
-        # Movimientos en EFECTIVO
-        ingresos_efectivo = PagosVentas.objects.filter(
-            id_venta__fh_venta__range=(apertura, ahora), 
-            id_bv__isnull=True, 
+        # CALCULAR INGRESOS REALES (Ventas en efectivo)
+        ingresos_efectivo = Decimal('0.00')
+        ventas_ciclo = Ventas.objects.filter(
             id_caja=caja,
-            borrado_pv=False
-        ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+            fh_venta__range=(apertura, ahora),
+            borrado_venta=False
+        )
         
-        egresos_efectivo = PagosCompras.objects.filter(
-            id_compra__fh_compra__range=(apertura, ahora),
-            id_bv__isnull=True,
-            id_caja=caja,
-            borrado_pc=False
-        ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+        for venta in ventas_ciclo:
+            ingresos_efectivo += venta.total_venta
 
-        # Movimientos con BILLETERA VIRTUAL (BV) - Se asume que pasan por la caja
-        ingresos_bv = PagosVentas.objects.filter(
-            id_venta__fh_venta__range=(apertura, ahora), 
-            id_bv__isnull=False, 
-            id_caja=caja,
-            borrado_pv=False
-        ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+        # CALCULAR EGRESOS REALES (Compras en efectivo)
+        egresos_efectivo = Decimal('0.00')
+        compras_ciclo = Compras.objects.filter(
+            fecha_hora_compra__range=(apertura, ahora),
+            situacion_compra="Completada"
+        )
         
-        egresos_bv = PagosCompras.objects.filter(
-            id_compra__fh_compra__range=(apertura, ahora),
-            id_bv__isnull=False, 
-            id_caja=caja,
-            borrado_pc=False
-        ).aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+        for compra in compras_ciclo:
+            movimientos_efectivo = MovimientosFinancieros.objects.filter(
+                id_compra=compra,
+                medio_pago='EFECTIVO',
+                tipo_movimiento='EGRESO',
+                fh_movimiento__range=(apertura, ahora)
+            )
+            
+            for movimiento in movimientos_efectivo:
+                egresos_efectivo += movimiento.monto
 
+        # 4. Calcular monto final esperado automáticamente
         monto_inicial = arqueo_activo.monto_inicial_efectivo
         saldo_esperado = monto_inicial + ingresos_efectivo - egresos_efectivo
         
+        # 5. Obtener el monto físico contado (esto sí lo ingresa el usuario)
+        monto_final_str = request.POST.get('monto_final_efectivo')
+        if not monto_final_str:
+            raise ValueError("El monto final de efectivo (conteo físico) es requerido.")
+            
+        try:
+            monto_final_efectivo = Decimal(monto_final_str.replace(',', '.'))
+        except InvalidOperation:
+            raise ValueError("Formato de monto final inválido.")
+
+        # 6. Calcular diferencia (físico vs sistema)
         diferencia = monto_final_efectivo - saldo_esperado
         
-        # 5. Guardar el Arqueo y cerrar la Caja
+        # 7. Guardar el Arqueo y cerrar la Caja
         with transaction.atomic():
             arqueo_activo.monto_final_efectivo = monto_final_efectivo
             
-            # --- ALMACENAR TOTALES CALCULADOS EN EL MODELO ARQUEOCAJA ---
-            # Totales de Efectivo
+            # Guardar los totales calculados automáticamente
             arqueo_activo.total_ingresos_efectivo_calculado = ingresos_efectivo 
             arqueo_activo.total_egresos_efectivo_calculado = egresos_efectivo 
-            # Totales de Billetera Virtual
+            
+            # Calcular totales de billeteras virtuales si existen
+            ingresos_bv = Decimal('0.00')
+            egresos_bv = Decimal('0.00')
+            
+            # Movimientos con billetera virtual (si los tienes implementados)
+            movimientos_bv_ingresos = MovimientosFinancieros.objects.filter(
+                fh_movimiento__range=(apertura, ahora),
+                medio_pago='BV',
+                tipo_movimiento='INGRESO'
+            )
+            for mov in movimientos_bv_ingresos:
+                ingresos_bv += mov.monto
+                
+            movimientos_bv_egresos = MovimientosFinancieros.objects.filter(
+                fh_movimiento__range=(apertura, ahora),
+                medio_pago='BV', 
+                tipo_movimiento='EGRESO'
+            )
+            for mov in movimientos_bv_egresos:
+                egresos_bv += mov.monto
+                
             arqueo_activo.total_ingresos_bv = ingresos_bv
             arqueo_activo.total_egresos_bv = egresos_bv
-            # -----------------------------------------------------------
             
             arqueo_activo.diferencia_arqueo = diferencia
             arqueo_activo.fh_cierre = ahora 
             arqueo_activo.cerrado = True 
             
-            # --- OBTENER EMPLEADO DE CIERRE (ASUMIDO) ---
+            # Obtener empleado de cierre
             try:
-                # CORRECCIÓN: Usamos user_auth=request.user, según la definición del modelo Empleados
-                empleado_cierre = Empleados.objects.get(user_auth=request.user) 
+                empleado_cierre = Empleados.objects.get(user_auth=request.user)
                 arqueo_activo.id_empleado_cierre = empleado_cierre
             except Empleados.DoesNotExist:
-                 # FIX: Si el empleado de cierre no se encuentra, elevamos un error claro
-                 raise ValueError("Error de autenticación: No se encontró un empleado asociado al usuario para registrar el cierre.")
+                raise ValueError("Error de autenticación: No se encontró un empleado asociado al usuario.")
 
             arqueo_activo.save()
             
-            # Cambiar el estado de la caja a CERRADA (usando el método del modelo Cajas)
+            # Cerrar la caja
             caja.cerrar()
         
-        # 6. Responder al usuario
-        estado_diferencia = 'Sobrante' if diferencia > 0 else ('Faltante' if diferencia < 0 else 'Cerrado OK')
+        # 8. Responder al usuario
+        estado_diferencia = 'Sobrante' if diferencia > 0 else ('Faltante' if diferencia < 0 else 'Perfecto')
         
-        message = f"Arqueo de Caja N°{caja.numero_caja} registrado. Diferencia: ${abs(diferencia):.2f} ({estado_diferencia}). La caja ha sido cerrada."
+        message = f"""
+        Cierre de Caja N°{caja.numero_caja} registrado exitosamente.
+        
+        Resumen:
+        • Efectivo inicial: ${monto_inicial:.2f}
+        • Ingresos por ventas: ${ingresos_efectivo:.2f} ({ventas_ciclo.count()} ventas)
+        • Egresos por compras: ${egresos_efectivo:.2f}
+        • Saldo esperado: ${saldo_esperado:.2f}
+        • Efectivo físico: ${monto_final_efectivo:.2f}
+        • Diferencia: ${abs(diferencia):.2f} ({estado_diferencia})
+        """
         
         if is_ajax:
             return JsonResponse({
                 'message': message, 
                 'diferencia': float(diferencia),
-                'estado_diferencia': estado_diferencia
+                'estado_diferencia': estado_diferencia,
+                'resumen': {
+                    'efectivo_inicial': float(monto_inicial),
+                    'ingresos_ventas': float(ingresos_efectivo),
+                    'egresos_compras': float(egresos_efectivo),
+                    'saldo_esperado': float(saldo_esperado),
+                    'efectivo_fisico': float(monto_final_efectivo),
+                    'ventas_realizadas': ventas_ciclo.count()
+                }
             }, status=200)
         else:
             if diferencia != 0:
@@ -582,14 +643,14 @@ def arqueos_api(request):
             data.append({
                 'id': arqueo.id_arqueo, # Clave 'id' usada en cajas.js
                 'local_nombre': local_nombre, # Clave 'local_nombre' usada en cajas.js
-                'numero_caja': numero_caja,
+                'caja_numero': numero_caja,
                 
                 'fecha_hora_apertura': fh_apertura_str, 
                 'fecha_hora_cierre': fh_cierre_str,
                 
                 # Coincidir con las claves de 'data' en cajas.js (Columna 4 y 6)
-                'usuario_apertura_nombre': empleado_apertura_nombre,
-                'usuario_cierre_nombre': empleado_cierre_nombre, 
+                'empleado_apertura_nombre': empleado_apertura_nombre,
+                'empleado_cierre_nombre': empleado_cierre_nombre, 
 
                 # Coincidir con las claves de 'data' en cajas.js (Columna 7, 8, 9, 10, 11)
                 'efectivo_inicial': float(arqueo.monto_inicial_efectivo),
@@ -608,246 +669,3 @@ def arqueos_api(request):
         return JsonResponse({'data': data}, safe=False)
     
     return JsonResponse({'error': 'Método no permitido'}, status=405)
-
-# ======================================================
-# Vistas para Apertura y Cierre de Caja Mejoradas
-# ======================================================
-
-@require_http_methods(["GET"])
-def obtener_arqueo_abierto_api(request, caja_id):
-    """Obtiene el arqueo activo de una caja específica"""
-    try:
-        arqueo_activo = ArqueoCaja.objects.filter(
-            id_caja_id=caja_id,
-            fh_cierre__isnull=True
-        ).select_related('id_empleado_apertura').first()
-
-        if not arqueo_activo:
-            return JsonResponse({'error': 'No hay arqueo activo para esta caja'}, status=404)
-
-        # Obtener nombre del empleado de forma segura
-        empleado_nombre = "N/A"
-        if arqueo_activo.id_empleado_apertura:
-            empleado_nombre = f"{arqueo_activo.id_empleado_apertura.nombre_emp} {arqueo_activo.id_empleado_apertura.apellido_emp}"
-
-        data = {
-            'id_arqueo': arqueo_activo.id_arqueo,
-            'monto_inicial_efectivo': float(arqueo_activo.monto_inicial_efectivo),
-            'fh_apertura': arqueo_activo.fh_apertura.strftime('%Y-%m-%d %H:%M:%S'),
-            'empleado_apertura_nombre': empleado_nombre,
-        }
-        return JsonResponse(data)
-
-    except Exception as e:
-        return JsonResponse({'error': f'Error al obtener arqueo: {str(e)}'}, status=500)
-
-@require_POST
-def registrar_apertura_caja(request, caja_id):
-    """Registra la apertura de una caja con el monto inicial"""
-    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
-    
-    try:
-        caja = get_object_or_404(Cajas, pk=caja_id)
-        
-        # Validar que la caja no esté ya abierta
-        if caja.caja_abierta:
-            raise ValueError("La caja ya se encuentra abierta.")
-
-        # Validar que no haya otro arqueo activo para esta caja
-        if ArqueoCaja.objects.filter(id_caja=caja, fh_cierre__isnull=True).exists():
-            raise ValueError("Ya existe un arqueo activo para esta caja.")
-
-        # Obtener y validar Monto Inicial
-        monto_str = request.POST.get('monto_inicial_efectivo', '0')
-        if not monto_str:
-            raise ValueError("El monto inicial de efectivo es requerido.")
-            
-        try:
-            monto_inicial = Decimal(monto_str.replace(',', '.'))
-        except InvalidOperation:
-            raise ValueError("Formato de monto inicial inválido.")
-            
-        if monto_inicial < 0:
-            raise ValueError("El monto inicial no puede ser negativo.")
-
-        # Obtener el Empleado de Apertura
-        if not request.user.is_authenticated:
-            raise ValueError("Usuario no autenticado para abrir caja.")
-            
-        try:
-            empleado_apertura = Empleados.objects.get(user_auth=request.user)
-        except Empleados.DoesNotExist:
-            raise ValueError("No se encontró un empleado asociado al usuario de autenticación.")
-
-        # Ejecutar la transacción de apertura
-        with transaction.atomic():
-            # Abrir la caja
-            caja.caja_abierta = True
-            caja.save()
-
-            # Crear el registro de ArqueoCaja
-            arqueo = ArqueoCaja.objects.create(
-                id_caja=caja,
-                fh_apertura=timezone.now(),
-                monto_inicial_efectivo=monto_inicial,
-                id_empleado_apertura=empleado_apertura,
-                cerrado=False
-            )
-
-        message = f"Caja N°{caja.numero_caja} abierta correctamente con ${monto_inicial:.2f} de fondo inicial."
-        
-        if is_ajax:
-            return JsonResponse({
-                'success': True,
-                'message': message,
-                'arqueo_id': arqueo.id_arqueo
-            })
-        else:
-            messages.success(request, message)
-
-    except (ValueError, IntegrityError) as ve:
-        error_message = str(ve)
-        if is_ajax:
-            return JsonResponse({'success': False, 'error': error_message}, status=400)
-        else:
-            messages.error(request, error_message)
-    except Exception as e:
-        error_message = f"Error inesperado al abrir la caja: {str(e)}"
-        if is_ajax:
-            return JsonResponse({'success': False, 'error': error_message}, status=500)
-        else:
-            messages.error(request, error_message)
-            
-    return redirect('a_cajas:listar_cajas')
-
-@require_POST
-def registrar_cierre_caja(request, caja_id):
-    """Registra el cierre de una caja con el resumen financiero"""
-    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
-    
-    try:
-        caja = get_object_or_404(Cajas, pk=caja_id)
-        
-        # Validar que la caja esté abierta
-        if not caja.caja_abierta:
-            raise ValueError("La caja ya se encuentra cerrada.")
-
-        # Obtener el arqueo activo
-        arqueo_activo = ArqueoCaja.objects.filter(
-            id_caja=caja,
-            fh_cierre__isnull=True
-        ).first()
-        
-        if not arqueo_activo:
-            raise ValueError("No se encontró un arqueo activo para esta caja.")
-
-        # Obtener y validar Monto Final
-        monto_final_str = request.POST.get('monto_final_efectivo')
-        if not monto_final_str:
-            raise ValueError("El monto final de efectivo es requerido.")
-            
-        try:
-            monto_final_efectivo = Decimal(monto_final_str.replace(',', '.'))
-        except InvalidOperation:
-            raise ValueError("Formato de monto final inválido.")
-
-        # Obtener el Empleado de Cierre
-        if not request.user.is_authenticated:
-            raise ValueError("Usuario no autenticado para cerrar caja.")
-            
-        try:
-            empleado_cierre = Empleados.objects.get(user_auth=request.user)
-        except Empleados.DoesNotExist:
-            raise ValueError("No se encontró un empleado asociado al usuario de autenticación.")
-
-        # Calcular resumen financiero
-        apertura = arqueo_activo.fh_apertura
-        ahora = timezone.now()
-        
-        # Ventas del período
-        ventas_periodo = Ventas.objects.filter(
-            id_caja=caja,
-            fh_venta__range=(apertura, ahora),
-            borrado_venta=False
-        )
-        
-        total_ventas = ventas_periodo.aggregate(total=Sum('total_venta'))['total'] or Decimal('0.00')
-        cantidad_ventas = ventas_periodo.count()
-
-        # Compras del período (para calcular costo de reposición)
-        compras_periodo = Compras.objects.filter(
-            fecha_hora_compra__range=(apertura, ahora),
-            borrado_compra=False
-        )
-        total_compras = compras_periodo.aggregate(total=Sum('monto_total'))['total'] or Decimal('0.00')
-
-        # Calcular ganancias
-        ganancia_bruta = total_ventas
-        ganancia_neta = total_ventas - total_compras
-
-        # Ejecutar la transacción de cierre
-        with transaction.atomic():
-            # Actualizar el arqueo
-            arqueo_activo.fh_cierre = ahora
-            arqueo_activo.monto_final_efectivo = monto_final_efectivo
-            arqueo_activo.id_empleado_cierre = empleado_cierre
-            arqueo_activo.cerrado = True
-            
-            # Guardar los totales calculados
-            arqueo_activo.total_ingresos_efectivo_calculado = total_ventas
-            arqueo_activo.total_egresos_efectivo_calculado = total_compras
-            arqueo_activo.diferencia_arqueo = monto_final_efectivo - (arqueo_activo.monto_inicial_efectivo + total_ventas - total_compras)
-            
-            arqueo_activo.save()
-
-            # Cerrar la caja
-            caja.caja_abierta = False
-            caja.save()
-
-        # Preparar mensaje de resumen
-        resumen = f"""
-        RESUMEN DE CIERRE - Caja N°{caja.numero_caja}
-        
-        • Ventas totales: ${total_ventas:.2f}
-        • Costo de reposición: ${total_compras:.2f}
-        • Ganancia bruta: ${ganancia_bruta:.2f}
-        • Ganancia neta: ${ganancia_neta:.2f}
-        • Efectivo inicial: ${arqueo_activo.monto_inicial_efectivo:.2f}
-        • Efectivo final: ${monto_final_efectivo:.2f}
-        • Diferencia: ${arqueo_activo.diferencia_arqueo:.2f}
-        """
-        
-        message = f"Caja N°{caja.numero_caja} cerrada correctamente.\n{resumen}"
-        
-        if is_ajax:
-            return JsonResponse({
-                'success': True,
-                'message': message,
-                'resumen': {
-                    'ventas_totales': float(total_ventas),
-                    'costo_reposicion': float(total_compras),
-                    'ganancia_bruta': float(ganancia_bruta),
-                    'ganancia_neta': float(ganancia_neta),
-                    'efectivo_inicial': float(arqueo_activo.monto_inicial_efectivo),
-                    'efectivo_final': float(monto_final_efectivo),
-                    'diferencia': float(arqueo_activo.diferencia_arqueo),
-                    'cantidad_ventas': cantidad_ventas
-                }
-            })
-        else:
-            messages.success(request, message)
-
-    except (ValueError, IntegrityError) as ve:
-        error_message = str(ve)
-        if is_ajax:
-            return JsonResponse({'success': False, 'error': error_message}, status=400)
-        else:
-            messages.error(request, error_message)
-    except Exception as e:
-        error_message = f"Error inesperado al cerrar la caja: {str(e)}"
-        if is_ajax:
-            return JsonResponse({'success': False, 'error': error_message}, status=500)
-        else:
-            messages.error(request, error_message)
-            
-    return redirect('a_cajas:listar_cajas')

@@ -150,7 +150,9 @@ class MovimientosFinancieros(models.Model):
     # id_caja = models.ForeignKey(Cajas, models.DO_NOTHING, db_column='ID_Caja', blank=True, null=True) 
     
     id_bv = models.ForeignKey('a_central.BilleterasVirtuales', models.DO_NOTHING, db_column='ID_BV', blank=True, null=True)
-    
+    id_compra = models.ForeignKey('a_compras.Compras', models.DO_NOTHING, db_column='ID_Compra', null=True, blank=True)
+    id_venta = models.ForeignKey('a_ventas.Ventas', models.DO_NOTHING, db_column='ID_Venta', null=True, blank=True)
+
     # IMPORTANTE: Definir si el movimiento es en EFECTIVO o BILLETERA VIRTUAL
     medio_pago = models.CharField(db_column='Medio_Pago', max_length=20) # E.g., 'EFECTIVO', 'BV'
     

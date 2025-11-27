@@ -85,46 +85,66 @@ $(document).ready(function() {
         "responsive": true
     });
 
-    // ============================================================
-    // 3. Registro de Proveedor
-    // ============================================================
-    $('#registrarProveedorForm').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
+ // ============================================================
+// 3. Registro de Proveedor
+// ============================================================
+$('#registrarProveedorForm').on('submit', function(e) {
+    e.preventDefault();
+    const form = $(this);
 
-        form.find('.form-control').removeClass('is-invalid');
-        $('#form-error-alerts').addClass('d-none');
+    form.find('.form-control').removeClass('is-invalid');
+    $('#form-error-alerts').addClass('d-none');
 
-        $.ajax({
-            url: form.attr('action'),
-            method: 'POST',
-            data: form.serialize(),
-            success: function(response) {
-                Swal.fire('¡Éxito!', response.message || 'Proveedor registrado correctamente.', 'success');
-                $('#registrarProveedorModal').modal('hide');
-                form[0].reset();
-                recargarTablas();
-            },
-            error: function(xhr) {
-                const r = xhr.responseJSON;
-                let errorListHtml = '';
-
-                if (r && r.details) {
-                    for (const field in r.details) {
-                        const message = r.details[field];
-                        const input = $(`#${field}`);
-                        input.addClass('is-invalid');
-                        $(`#error-${field}`).text(message);
-                        errorListHtml += `<li>${message}</li>`;
-                    }
-                    $('#error-list').html(errorListHtml);
-                    $('#form-error-alerts').removeClass('d-none');
-                } else {
-                    Swal.fire('Error', r?.error || 'Error al registrar proveedor.', 'error');
-                }
-            }
-        });
+    // ===== Recolectar productos y precios =====
+    const productos_proveedor = [];
+    $('#productos-container .producto-item').each(function() {
+        const prodId = $(this).find('select').val();
+        const costo = $(this).find('input').val();
+        if (prodId && costo) {
+            productos_proveedor.push({id: prodId, costo: costo});
+        }
     });
+
+    // ===== Preparar datos a enviar =====
+    const formData = form.serializeArray(); // convierte el form en array de {name, value}
+    
+    // Enviar cada producto con su costo como JSON
+    productos_proveedor.forEach(p => {
+        formData.push({name: 'productos_proveedor[]', value: JSON.stringify(p)});
+    });
+
+    $.ajax({
+        url: form.attr('action'),
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            Swal.fire('¡Éxito!', response.message || 'Proveedor registrado correctamente.', 'success');
+            $('#registrarProveedorModal').modal('hide');
+            form[0].reset();
+            recargarTablas();
+        },
+        error: function(xhr) {
+            const r = xhr.responseJSON;
+            let errorListHtml = '';
+
+            if (r && r.details) {
+                for (const field in r.details) {
+                    const message = r.details[field];
+                    const input = $(`#${field}`);
+                    input.addClass('is-invalid');
+                    $(`#error-${field}`).text(message);
+                    errorListHtml += `<li>${message}</li>`;
+                }
+                $('#error-list').html(errorListHtml);
+                $('#form-error-alerts').removeClass('d-none');
+            } else {
+                Swal.fire('Error', r?.error || 'Error al registrar proveedor.', 'error');
+            }
+        }
+    });
+});
+
+
 
     // ============================================================
     // 4. Modificación de Proveedor
