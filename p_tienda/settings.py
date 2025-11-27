@@ -86,7 +86,7 @@ DATABASES = { # Configuración de la BD
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'kiosco_mateo',
         'USER': 'root',
-        'PASSWORD': 'root',
+        'PASSWORD': '1234',
         'HOST': 'localhost',
         'PORT': '3306',
     }

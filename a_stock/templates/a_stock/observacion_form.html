@@ -1,126 +1,88 @@
-{% extends 'a_inicio/base.html' %}
-{% load static %}
-{% block title %}Observaciones de Stock{% endblock %}
-
+{% extends "a_inicio/base.html" %}
 {% block content %}
+
 <div class="container mt-4">
-    <h2 class="mb-4 text-center">Gestión de Observaciones de Stock</h2>
+    <h2 class="mb-4 text-center">Registrar Observación de Stock</h2>
 
-    <!-- Formulario -->
-    <div class="card shadow-lg p-4 mb-4">
-        <h5 class="mb-3">
-            {% if observacion %}Editar observación{% else %}Registrar nueva observación{% endif %}
-        </h5>
-        <form method="POST">
-            {% csrf_token %}
-            <div class="row">
-                <div class="col-md-4 mb-3">
-                    <label class="form-label fw-bold">Producto</label>
-                    <input type="text" name="producto" class="form-control"
-                           value="{{ observacion.producto|default_if_none:'' }}" required>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label fw-bold">Motivo</label>
-                    <input type="text" name="motivo" class="form-control"
-                           value="{{ observacion.motivo|default_if_none:'' }}" required>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label fw-bold">Cantidad</label>
-                    <input type="number" name="cantidad" class="form-control"
-                           value="{{ observacion.cantidad|default_if_none:'' }}" min="1" required>
-                </div>
-            </div>
+    <form method="POST">
+        {% csrf_token %}
 
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold">Fecha</label>
-                    <input type="date" name="fecha" class="form-control"
-                           value="{{ observacion.fecha|date:'Y-m-d' }}">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold">Descripción</label>
-                    <textarea name="descripcion" class="form-control" rows="2">{{ observacion.descripcion }}</textarea>
-                </div>
-            </div>
+        <!-- 🔹 Selección de producto -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Producto</label>
+            <select name="producto" id="producto" class="form-select" onchange="cargarLotes()">
+                <option value="">Seleccione un producto...</option>
 
-            <div class="text-center">
-                <button type="submit" class="btn btn-primary px-4">
-                    <i class="fa-solid fa-save me-2"></i>
-                    {% if observacion %}Actualizar{% else %}Guardar{% endif %}
-                </button>
-                {% if observacion %}
-                <a href="{% url 'a_stock:registrar_observacion' %}" class="btn btn-secondary ms-2">
-                    <i class="fa-solid fa-rotate-left me-2"></i>Cancelar edición
-                </a>
-                {% endif %}
-            </div>
-        </form>
-    </div>
-
-    <!-- FILTROS -->
-    <div class="card shadow-sm p-3 mb-4">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Producto</label>
-                <input type="text" name="producto" class="form-control" value="{{ producto_filtro }}">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Desde</label>
-                <input type="date" name="desde" class="form-control" value="{{ fecha_desde }}">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Hasta</label>
-                <input type="date" name="hasta" class="form-control" value="{{ fecha_hasta }}">
-            </div>
-            <div class="col-md-2 text-end">
-                <button type="submit" class="btn btn-success w-100">
-                    <i class="fa-solid fa-filter me-2"></i>Filtrar
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Tabla -->
-    <div class="card shadow-lg p-4">
-        <h5 class="mb-3">Lista de Observaciones</h5>
-        <table class="table table-striped table-hover align-middle">
-            <thead class="table-dark text-center">
-                <tr>
-                    <th>Fecha</th>
-                    <th>Producto</th>
-                    <th>Motivo</th>
-                    <th>Descripción</th>
-                    <th>Cantidad</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for obs in observaciones %}
-                <tr>
-                    <td>{{ obs.fecha }}</td>
-                    <td>{{ obs.producto }}</td>
-                    <td>{{ obs.motivo }}</td>
-                    <td>{{ obs.descripcion|default:"-" }}</td>
-                    <td class="text-center">{{ obs.cantidad }}</td>
-                    <td class="text-center">
-                        <a href="{% url 'a_stock:editar_observacion' obs.id %}" class="btn btn-warning btn-sm me-2" title="Editar">
-                            <i class="fa-solid fa-pen"></i>
-                        </a>
-                        <a href="{% url 'a_stock:eliminar_observacion' obs.id %}"
-                           class="btn btn-danger btn-sm"
-                           onclick="return confirm('¿Seguro que desea eliminar esta observación?');"
-                           title="Eliminar">
-                            <i class="fa-solid fa-trash"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted">No hay observaciones registradas</td>
-                </tr>
+                {% for p in productos %}
+                    <option value="{{ p.id_producto }}"
+                        {% if producto_sel and producto_sel.id_producto == p.id_producto %}selected{% endif %}>
+                        {{ p.nombre_producto }}
+                    </option>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
+            </select>
+        </div>
+
+        {% if producto_sel %}
+        <!-- 🔹 Selección de lote (solo activos) -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Lote Activo</label>
+            <select name="lote" class="form-select" required>
+                <option value="">Seleccione un lote...</option>
+
+                {% for lote in lotes %}
+                    <option value="{{ lote.id_lote }}">
+                        {{ lote.numero_lote }} — Stock: {{ lote.cantidad }} — Vence: {{ lote.fecha_vencimiento }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- 🔹 Motivo -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Motivo</label>
+            <select class="form-select" name="motivo" required>
+                <option value="Pérdida">Pérdida</option>
+                <option value="Rotura">Rotura</option>
+                <option value="Vencimiento">Vencimiento</option>
+            </select>
+        </div>
+
+        <!-- 🔹 Cantidad -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Cantidad</label>
+            <input type="number" name="cantidad" class="form-control" required min="1">
+        </div>
+
+        <!-- 🔹 Fecha -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Fecha</label>
+            <input type="date" name="fecha" class="form-control" required>
+        </div>
+
+        <!-- 🔹 Descripción -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Descripción</label>
+            <textarea name="descripcion" class="form-control" rows="3"></textarea>
+        </div>
+
+        <!-- 🔹 Botón -->
+        <button class="btn btn-success w-100">
+            Guardar Observación
+        </button>
+
+        {% endif %}
+    </form>
 </div>
+
+<script>
+function cargarLotes() {
+    const id = document.getElementById("producto").value;
+    if (id) {
+        window.location.href = "?producto=" + id;
+    } else {
+        window.location.href = window.location.pathname;
+    }
+}
+</script>
+
 {% endblock %}

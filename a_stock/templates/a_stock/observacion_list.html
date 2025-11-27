@@ -1,41 +1,184 @@
 {% extends 'a_inicio/base.html' %}
-{% block title %}Lista de Observaciones{% endblock %}
+{% load static %}
+
+{% block title %}Observaciones de Stock{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="text-center mb-4">Observaciones de Stock</h2>
 
+    <h2 class="mb-4 text-center">Observaciones de Stock</h2>
+
+    <!-- ================================
+         FILTROS
+    ================================= -->
+    <form method="GET" class="row g-3 mb-4">
+
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Producto</label>
+            <input type="text" name="producto" value="{{ producto_filtro }}" placeholder="Ej: Coca Cola"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Desde</label>
+            <input type="date" name="desde" value="{{ desde }}" class="form-control">
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Hasta</label>
+            <input type="date" name="hasta" value="{{ hasta }}" class="form-control">
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100">
+                <i class="fa-solid fa-filter me-2"></i>Filtrar
+            </button>
+        </div>
+
+    </form>
+
+    <!-- ================================
+         TARJETAS RESUMEN
+    ================================= -->
+    <div class="row text-center mb-4">
+
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow-sm">
+                <div class="card-body">
+                    <h3 class="fw-bold">{{ total_obs }}</h3>
+                    <p class="m-0">Total Observaciones</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-danger text-white shadow-sm">
+                <div class="card-body">
+                    <h3 class="fw-bold">{{ perdidas }}</h3>
+                    <p class="m-0">Pérdidas</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow-sm">
+                <div class="card-body">
+                    <h3 class="fw-bold">{{ roturas }}</h3>
+                    <p class="m-0">Roturas</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow-sm">
+                <div class="card-body">
+                    <h3 class="fw-bold">{{ vencimientos }}</h3>
+                    <p class="m-0">Vencimientos</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================================
+         BOTÓN NUEVA OBSERVACIÓN
+    ================================= -->
     <div class="text-end mb-3">
         <a href="{% url 'a_stock:registrar_observacion' %}" class="btn btn-success">
             <i class="fa-solid fa-plus me-2"></i>Nueva Observación
         </a>
     </div>
 
-    <table class="table table-striped table-bordered">
-        <thead class="table-dark text-center">
-            <tr>
-                <th>Fecha</th>
-                <th>Producto</th>
-                <th>Motivo</th>
-                <th>Descripción</th>
-                <th>Cantidad</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for obs in observaciones %}
-            <tr>
-                <td>{{ obs.fecha }}</td>
-                <td>{{ obs.producto }}</td>
-                <td>{{ obs.motivo }}</td>
-                <td>{{ obs.descripcion|default:"-" }}</td>
-                <td>{{ obs.cantidad }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="text-center text-muted">No hay observaciones registradas</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- ================================
+         TABLA
+    ================================= -->
+    <div class="table-responsive shadow-sm">
+        <table class="table table-striped table-bordered align-middle text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Producto</th>
+                    <th>Lote</th>
+                    <th>Motivo</th>
+                    <th>Cantidad</th>
+                    <th>Descripción</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for obs in observaciones %}
+                <tr>
+
+                    <!-- Fecha -->
+                    <td>{{ obs.fecha|date:"M. d, Y" }}</td>
+
+                    <!-- Producto -->
+                    <td>
+                        {% if obs.lote %}
+                            {{ obs.lote.id_producto.nombre_producto }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+
+                    <!-- Lote -->
+                    <td>
+                        {% if obs.lote %}
+                            <span class="badge bg-info text-dark">
+                                {{ obs.lote.numero_lote }}
+                            </span>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+
+                    <!-- Motivo -->
+                    <td>
+                        {% if obs.motivo == "Pérdida" %}
+                            <span class="badge bg-danger">Pérdida</span>
+                        {% elif obs.motivo == "Rotura" %}
+                            <span class="badge bg-warning text-dark">Rotura</span>
+                        {% elif obs.motivo == "Vencimiento" %}
+                            <span class="badge bg-success">Vencimiento</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ obs.motivo }}</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Cantidad -->
+                    <td>{{ obs.cantidad }}</td>
+
+                    <!-- Descripción -->
+                    <td>{{ obs.descripcion|default:"—" }}</td>
+
+                    <!-- Acciones -->
+                    <td>
+                        <a href="{% url 'a_stock:registrar_observacion' %}?id={{ obs.id }}" 
+                           class="btn btn-warning btn-sm">
+                           <i class="fa-solid fa-edit"></i>
+                        </a>
+
+                        <a href="{% url 'a_stock:eliminar_observacion' obs.id %}" 
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('¿Eliminar esta observación?');">
+                           <i class="fa-solid fa-trash"></i>
+                        </a>
+                    </td>
+
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">
+                        No hay observaciones registradas
+                    </td>
+                </tr>
+                {% endfor %}
+
+            </tbody>
+        </table>
+    </div>
+
 </div>
 {% endblock %}
