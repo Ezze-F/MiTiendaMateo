@@ -128,13 +128,13 @@
 
                             <div class="mb-3">
                                 <label for="telefono_prov" class="form-label">Teléfono:</label>
-                                <input type="text" class="form-control" id="telefono_prov" name="telefono_prov">
+                                <input type="text" class="form-control" id="telefono_prov" name="telefono_prov" required>
                                 <div class="invalid-feedback" id="error-telefono_prov"></div>
                             </div>
 
                             <div class="mb-3">
                                 <label for="direccion_prov" class="form-label">Dirección:</label>
-                                <input type="text" class="form-control" id="direccion_prov" name="direccion_prov">
+                                <input type="text" class="form-control" id="direccion_prov" name="direccion_prov" required>
                                 <div class="invalid-feedback" id="error-direccion_prov"></div>
                             </div>
 
@@ -161,6 +161,7 @@
                             <div id="productos-container">
                                 <div class="producto-item d-flex gap-2 mb-2">
                                     <select name="productos_vendidos" class="form-select select2-productos" style="width:100%;">
+                                        <option value="" selected disabled>Seleccionar producto</option>
                                         {% for p in productos %}
                                             <option value="{{ p.id_producto }}">{{ p }}</option>
                                         {% endfor %}
@@ -183,9 +184,9 @@
     </div>
 </div>
 
-<!-- MODAL: Modificar Proveedor -->
+<!-- MODAL: Modificar Proveedor (ACTUALIZADO) -->
 <div class="modal fade" id="modificarProveedorModal" tabindex="-1" aria-labelledby="modificarProveedorModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <form id="modificarProveedorForm" method="post">
                 {% csrf_token %}
@@ -196,48 +197,53 @@
                 </div>
                 <div class="modal-body">
                     <div id="modificar-error-alert" class="alert alert-danger d-none" role="alert"></div>
-                    <div class="mb-3">
-                        <label for="modificar_cuit_prov" class="form-label">CUIT:</label>
-                        <input type="text" class="form-control" id="modificar_cuit_prov" name="cuit_prov" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="modificar_nombre_prov" class="form-label">Nombre:</label>
-                        <input type="text" class="form-control" id="modificar_nombre_prov" name="nombre_prov" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="modificar_email_prov" class="form-label">Email:</label>
-                        <input type="email" class="form-control" id="modificar_email_prov" name="email_prov" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="modificar_telefono_prov" class="form-label">Teléfono:</label>
-                        <input type="text" class="form-control" id="modificar_telefono_prov" name="telefono_prov">
-                    </div>
-                    <div class="mb-3">
-                        <label for="modificar_direccion_prov" class="form-label">Dirección:</label>
-                        <input type="text" class="form-control" id="modificar_direccion_prov" name="direccion_prov">
-                    </div>
-                    <div class="mb-3">
-                        <label for="modificar_fecha_alta_prov" class="form-label">Fecha Alta:</label>
-                        <input type="date" class="form-control" id="modificar_fecha_alta_prov" name="fecha_alta_prov" disabled>
-                    </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Locales Comerciales que atiende:</label>
-                        <div id="modificar_locales_comerciales_checkboxes">
-                            {% for local in locales_comerciales %}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" 
-                                            name="locales_comerciales" 
-                                            value="{{ local.pk }}" 
-                                            id="modificar_local_comercial_{{ local.pk }}">
-                                    <label class="form-check-label" for="modificar_local_comercial_{{ local.pk }}">
-                                        {{ local.nombre_loc_com }}
-                                    </label>
+                    <!-- Contenedor principal: formulario a la izquierda, productos a la derecha -->
+                    <div style="display:flex; gap:20px;">
+                        <!-- Formulario principal -->
+                        <div style="flex:1;">
+                            <div class="mb-3">
+                                <label for="modificar_cuit_prov" class="form-label">CUIT:</label>
+                                <input type="text" class="form-control" id="modificar_cuit_prov" name="cuit_prov" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="modificar_nombre_prov" class="form-label">Nombre:</label>
+                                <input type="text" class="form-control" id="modificar_nombre_prov" name="nombre_prov" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="modificar_email_prov" class="form-label">Email:</label>
+                                <input type="email" class="form-control" id="modificar_email_prov" name="email_prov" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="modificar_telefono_prov" class="form-label">Teléfono:</label>
+                                <input type="text" class="form-control" id="modificar_telefono_prov" name="telefono_prov">
+                            </div>
+                            <div class="mb-3">
+                                <label for="modificar_direccion_prov" class="form-label">Dirección:</label>
+                                <input type="text" class="form-control" id="modificar_direccion_prov" name="direccion_prov">
+                            </div>
+                            
+                            <!-- Locales Comerciales -->
+                            <div class="mb-3">
+                                <label class="form-label">Locales Comerciales que atiende:</label>
+                                <div id="modificar_locales_comerciales_checkboxes">
+                                    <!-- Se llena dinámicamente con JavaScript -->
                                 </div>
-                            {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Productos y Precio de Compra -->
+                        <div style="flex:1;">
+                            <h5>Productos y Precio de Compra</h5>
+                            <div id="modificar_productos_container">
+                                <!-- Se llena dinámicamente con JavaScript -->
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm mt-2" id="btn-agregar-producto-modificar">
+                                + Agregar Producto
+                            </button>
                         </div>
                     </div>
-                    </div>
+                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                     <button type="submit" class="btn btn-primary">Guardar cambios</button>
@@ -255,6 +261,7 @@ window.AppUrls = {
     modificarProveedor: "{% url 'a_central:modificar_proveedor' proveedor_id=0 %}".replace('/0/', '/'),
     borrarProveedor: "{% url 'a_central:borrar_proveedor' proveedor_id=0 %}".replace('/0/', '/'),
     recuperarProveedor: "{% url 'a_central:recuperar_proveedor' proveedor_id=0 %}".replace('/0/', '/'),
+    cargarDatosProveedor: "{% url 'a_central:cargar_datos_proveedor' proveedor_id=0 %}".replace('/0/', '/'),
 };
 
 function agregarProducto() {

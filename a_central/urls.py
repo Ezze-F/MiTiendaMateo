@@ -45,8 +45,7 @@ urlpatterns = [
     path('proveedores/modificar/<int:proveedor_id>/', views.modificar_proveedor, name='modificar_proveedor'),
     path('proveedores/borrar/<int:proveedor_id>/', views.borrar_proveedor, name='borrar_proveedor'),
     path('proveedores/recuperar/<int:proveedor_id>/', views.recuperar_proveedor, name='recuperar_proveedor'),
-
-
+    path('proveedores/cargar-datos/<int:proveedor_id>/', views.cargar_datos_proveedor, name='cargar_datos_proveedor'),
     # ==================================
     # RUTAS DE LOCALES COMERCIALES
     # ==================================

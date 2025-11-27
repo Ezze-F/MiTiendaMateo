@@ -111,7 +111,13 @@ def crear_compra(compra_form, detalle_formset, empleado):
 
     for det in detalles_a_guardar:
         det.id_compra = compra
-        det.precio_unitario = det.id_producto.precio_unit_prod or 0
+        prov_prod = Proveedoresxproductos.objects.filter(
+            id_proveedor=compra.cuit_proveedor,
+            id_producto=det.id_producto
+        ).first()
+
+        det.precio_unitario = prov_prod.costo_compra if prov_prod else det.id_producto.precio_unit_prod or 0
+
         det.subtotal_est = det.cantidad * det.precio_unitario
         total_estimado += det.subtotal_est
         det.save()

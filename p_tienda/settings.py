@@ -147,3 +147,20 @@ LOGIN_URL = '/cuenta/login/'
 LOGIN_REDIRECT_URL = 'a_inicio:inicio'
 
 LOGOUT_REDIRECT_URL = 'a_login:login'
+
+# =========================================================
+# CONFIGURACIÓN DE CORREO ELECTRÓNICO (SMTP - GMAIL)
+# =========================================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com' # Para Gmail
+EMAIL_PORT = 587 # Puerto estándar para TLS
+EMAIL_USE_TLS = True # Usar Transport Layer Security (recomendado)
+EMAIL_TIMEOUT = 5
+
+# Credenciales de tu cuenta de correo
+# Usar variables de entorno (os.environ) en producción es la MEJOR práctica
+EMAIL_HOST_USER = 'kiosco.mateo.2025@gmail.com'  # E-mail emisor
+EMAIL_HOST_PASSWORD = 'jkmgzbkpixrokgfh' # Contraseña de Aplicación/App Password del E-mail emisor
+
+# Email que aparecerá como remitente
+DEFAULT_FROM_EMAIL = 'Mi Tienda Mateo - Soporte <kiosco.mateo.2025@gmail.com>'
