@@ -13,4 +13,6 @@ urlpatterns = [
     path('api/cajas-disponibles/<int:local_id>/', views.cajas_disponibles_api, name='cajas_disponibles_api'),
     path('cierre-caja/', views.cierre_caja, name='cierre_caja'),
     path('api/ventas-del-dia/', views.ventas_del_dia_api, name='ventas_del_dia_api'),
+    # Nueva URL para el ticket
+    path('ticket/<int:venta_id>/', views.imprimir_ticket, name='imprimir_ticket'),
 ]

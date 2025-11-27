@@ -282,6 +282,7 @@ def datos_arqueo_actual_api(request, caja_id):
     """
     Retorna los datos de transacciones del ciclo de caja actualmente ABIERTO
     para una caja específica, calculando automáticamente ingresos y egresos.
+    SEPARADO POR EFECTIVO Y BILLETERA VIRTUAL.
     """
     try:
         # 1. Obtener la caja
@@ -300,41 +301,67 @@ def datos_arqueo_actual_api(request, caja_id):
         apertura = arqueo_activo.fh_apertura
         ahora = timezone.now()
         
-        # 3. Calcular INGRESOS en EFECTIVO (Ventas realizadas en esta caja durante el ciclo)
+        # 3. Calcular INGRESOS en EFECTIVO (Ventas realizadas en esta caja durante el ciclo con medio_pago='EFECTIVO')
         ingresos_efectivo = Decimal('0.00')
+        ingresos_bv = Decimal('0.00')
+        
+        # Obtener ventas del ciclo
         ventas_ciclo = Ventas.objects.filter(
             id_caja=caja,
             fh_venta__range=(apertura, ahora),
             borrado_venta=False
         )
         
+        # Contadores para estadísticas
+        ventas_efectivo_count = 0
+        ventas_bv_count = 0
+        
         for venta in ventas_ciclo:
-            ingresos_efectivo += venta.total_venta
+            # Determinar el tipo de venta basado en movimientos financieros
+            movimiento = MovimientosFinancieros.objects.filter(
+                concepto__contains=f'Venta #{venta.id_venta}'
+            ).first()
+            
+            if movimiento:
+                if movimiento.medio_pago == 'EFECTIVO':
+                    ingresos_efectivo += venta.total_venta
+                    ventas_efectivo_count += 1
+                elif movimiento.medio_pago == 'BILLETERA_VIRTUAL':
+                    ingresos_bv += venta.total_venta
+                    ventas_bv_count += 1
 
         # 4. Calcular EGRESOS en EFECTIVO (Compras pagadas en efectivo durante el ciclo)
         egresos_efectivo = Decimal('0.00')
+        egresos_bv = Decimal('0.00')
         
-        # Buscar compras pagadas en efectivo durante este ciclo
+        # Buscar compras pagadas durante este ciclo
         compras_ciclo = Compras.objects.filter(
             fecha_hora_compra__range=(apertura, ahora),
             situacion_compra="Completada"
         )
         
+        compras_efectivo_count = 0
+        compras_bv_count = 0
+        
         for compra in compras_ciclo:
-            # Verificar si tiene pago en efectivo (MovimientosFinancieros con medio_pago='EFECTIVO')
-            movimientos_efectivo = MovimientosFinancieros.objects.filter(
+            # Verificar movimientos financieros de esta compra
+            movimientos_compra = MovimientosFinancieros.objects.filter(
                 id_compra=compra,
-                medio_pago='EFECTIVO',
-                tipo_movimiento='EGRESO',
                 fh_movimiento__range=(apertura, ahora)
             )
             
-            for movimiento in movimientos_efectivo:
-                egresos_efectivo += movimiento.monto
+            for movimiento in movimientos_compra:
+                if movimiento.tipo_movimiento == 'EGRESO':
+                    if movimiento.medio_pago == 'EFECTIVO':
+                        egresos_efectivo += movimiento.monto
+                        compras_efectivo_count += 1
+                    elif movimiento.medio_pago == 'BILLETERA_VIRTUAL':
+                        egresos_bv += movimiento.monto
+                        compras_bv_count += 1
 
-        # 5. Calcular Saldo Esperado (en efectivo)
+        # 5. Calcular Saldo Esperado (solo en efectivo)
         monto_inicial = arqueo_activo.monto_inicial_efectivo
-        saldo_esperado = monto_inicial + ingresos_efectivo - egresos_efectivo
+        saldo_esperado_efectivo = monto_inicial + ingresos_efectivo - egresos_efectivo
 
         data = {
             'id_arqueo': arqueo_activo.id_arqueo,
@@ -343,12 +370,23 @@ def datos_arqueo_actual_api(request, caja_id):
             'local': str(caja.id_loc_com),
             'fh_apertura': apertura.strftime('%Y-%m-%d %H:%M:%S'),
             'monto_inicial_efectivo': float(monto_inicial),
+            
+            # EFECTIVO
             'total_ingresos_efectivo': float(ingresos_efectivo),
             'total_egresos_efectivo': float(egresos_efectivo),
-            'saldo_esperado_efectivo': float(saldo_esperado),
-            'ventas_realizadas': ventas_ciclo.count(),
-            'compras_pagadas_efectivo': len([c for c in compras_ciclo if MovimientosFinancieros.objects.filter(
-                id_compra=c, medio_pago='EFECTIVO').exists()])
+            'saldo_esperado_efectivo': float(saldo_esperado_efectivo),
+            'ventas_efectivo_count': ventas_efectivo_count,
+            'compras_efectivo_count': compras_efectivo_count,
+            
+            # BILLETERA VIRTUAL
+            'total_ingresos_bv': float(ingresos_bv),
+            'total_egresos_bv': float(egresos_bv),
+            'ventas_bv_count': ventas_bv_count,
+            'compras_bv_count': compras_bv_count,
+            
+            # TOTALES
+            'ventas_total_count': ventas_efectivo_count + ventas_bv_count,
+            'compras_total_count': compras_efectivo_count + compras_bv_count,
         }
             
         return JsonResponse(data)
@@ -361,7 +399,8 @@ def datos_arqueo_actual_api(request, caja_id):
 @require_POST
 def registrar_cierre_arqueo(request, caja_id):
     """
-    Registra el cierre automático de caja calculando ingresos y egresos reales.
+    Registra el cierre automático de caja calculando ingresos y egresos reales
+    SEPARADOS POR EFECTIVO Y BILLETERA VIRTUAL.
     """
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     caja = get_object_or_404(Cajas, pk=caja_id)
@@ -380,42 +419,67 @@ def registrar_cierre_arqueo(request, caja_id):
         if not arqueo_activo:
             raise Exception(f"Error interno: No se encontró un ciclo de arqueo activo para la Caja N°{caja.numero_caja}.")
 
-        # 3. Recalcular movimientos automáticamente
+        # 3. Recalcular movimientos automáticamente (SEPARADOS)
         apertura = arqueo_activo.fh_apertura
         ahora = timezone.now()
         
-        # CALCULAR INGRESOS REALES (Ventas en efectivo)
+        # CALCULAR INGRESOS REALES (SEPARADOS POR TIPO DE PAGO)
         ingresos_efectivo = Decimal('0.00')
+        ingresos_bv = Decimal('0.00')
+        
         ventas_ciclo = Ventas.objects.filter(
             id_caja=caja,
             fh_venta__range=(apertura, ahora),
             borrado_venta=False
         )
         
+        ventas_efectivo_count = 0
+        ventas_bv_count = 0
+        
         for venta in ventas_ciclo:
-            ingresos_efectivo += venta.total_venta
+            # Determinar tipo de venta basado en movimientos financieros
+            movimiento = MovimientosFinancieros.objects.filter(
+                concepto__contains=f'Venta #{venta.id_venta}'
+            ).first()
+            
+            if movimiento:
+                if movimiento.medio_pago == 'EFECTIVO':
+                    ingresos_efectivo += venta.total_venta
+                    ventas_efectivo_count += 1
+                elif movimiento.medio_pago == 'BILLETERA_VIRTUAL':
+                    ingresos_bv += venta.total_venta
+                    ventas_bv_count += 1
 
-        # CALCULAR EGRESOS REALES (Compras en efectivo)
+        # CALCULAR EGRESOS REALES (SEPARADOS POR TIPO DE PAGO)
         egresos_efectivo = Decimal('0.00')
+        egresos_bv = Decimal('0.00')
+        
         compras_ciclo = Compras.objects.filter(
             fecha_hora_compra__range=(apertura, ahora),
             situacion_compra="Completada"
         )
         
+        compras_efectivo_count = 0
+        compras_bv_count = 0
+        
         for compra in compras_ciclo:
-            movimientos_efectivo = MovimientosFinancieros.objects.filter(
+            movimientos_compra = MovimientosFinancieros.objects.filter(
                 id_compra=compra,
-                medio_pago='EFECTIVO',
-                tipo_movimiento='EGRESO',
                 fh_movimiento__range=(apertura, ahora)
             )
             
-            for movimiento in movimientos_efectivo:
-                egresos_efectivo += movimiento.monto
+            for movimiento in movimientos_compra:
+                if movimiento.tipo_movimiento == 'EGRESO':
+                    if movimiento.medio_pago == 'EFECTIVO':
+                        egresos_efectivo += movimiento.monto
+                        compras_efectivo_count += 1
+                    elif movimiento.medio_pago == 'BILLETERA_VIRTUAL':
+                        egresos_bv += movimiento.monto
+                        compras_bv_count += 1
 
-        # 4. Calcular monto final esperado automáticamente
+        # 4. Calcular monto final esperado automáticamente (SOLO EFECTIVO)
         monto_inicial = arqueo_activo.monto_inicial_efectivo
-        saldo_esperado = monto_inicial + ingresos_efectivo - egresos_efectivo
+        saldo_esperado_efectivo = monto_inicial + ingresos_efectivo - egresos_efectivo
         
         # 5. Obtener el monto físico contado (esto sí lo ingresa el usuario)
         monto_final_str = request.POST.get('monto_final_efectivo')
@@ -427,38 +491,18 @@ def registrar_cierre_arqueo(request, caja_id):
         except InvalidOperation:
             raise ValueError("Formato de monto final inválido.")
 
-        # 6. Calcular diferencia (físico vs sistema)
-        diferencia = monto_final_efectivo - saldo_esperado
+        # 6. Calcular diferencia (físico vs sistema) - SOLO EFECTIVO
+        diferencia = monto_final_efectivo - saldo_esperado_efectivo
         
         # 7. Guardar el Arqueo y cerrar la Caja
         with transaction.atomic():
             arqueo_activo.monto_final_efectivo = monto_final_efectivo
             
-            # Guardar los totales calculados automáticamente
+            # Guardar los totales calculados automáticamente (SEPARADOS)
             arqueo_activo.total_ingresos_efectivo_calculado = ingresos_efectivo 
             arqueo_activo.total_egresos_efectivo_calculado = egresos_efectivo 
             
-            # Calcular totales de billeteras virtuales si existen
-            ingresos_bv = Decimal('0.00')
-            egresos_bv = Decimal('0.00')
-            
-            # Movimientos con billetera virtual (si los tienes implementados)
-            movimientos_bv_ingresos = MovimientosFinancieros.objects.filter(
-                fh_movimiento__range=(apertura, ahora),
-                medio_pago='BV',
-                tipo_movimiento='INGRESO'
-            )
-            for mov in movimientos_bv_ingresos:
-                ingresos_bv += mov.monto
-                
-            movimientos_bv_egresos = MovimientosFinancieros.objects.filter(
-                fh_movimiento__range=(apertura, ahora),
-                medio_pago='BV', 
-                tipo_movimiento='EGRESO'
-            )
-            for mov in movimientos_bv_egresos:
-                egresos_bv += mov.monto
-                
+            # Totales de billeteras virtuales (calculados automáticamente)
             arqueo_activo.total_ingresos_bv = ingresos_bv
             arqueo_activo.total_egresos_bv = egresos_bv
             
@@ -478,19 +522,29 @@ def registrar_cierre_arqueo(request, caja_id):
             # Cerrar la caja
             caja.cerrar()
         
-        # 8. Responder al usuario
+        # 8. Responder al usuario con resumen completo
         estado_diferencia = 'Sobrante' if diferencia > 0 else ('Faltante' if diferencia < 0 else 'Perfecto')
         
         message = f"""
         Cierre de Caja N°{caja.numero_caja} registrado exitosamente.
         
-        Resumen:
+        RESUMEN EFECTIVO:
         • Efectivo inicial: ${monto_inicial:.2f}
-        • Ingresos por ventas: ${ingresos_efectivo:.2f} ({ventas_ciclo.count()} ventas)
-        • Egresos por compras: ${egresos_efectivo:.2f}
-        • Saldo esperado: ${saldo_esperado:.2f}
+        • Ingresos por ventas: ${ingresos_efectivo:.2f} ({ventas_efectivo_count} ventas)
+        • Egresos por compras: ${egresos_efectivo:.2f} ({compras_efectivo_count} compras)
+        • Saldo esperado: ${saldo_esperado_efectivo:.2f}
         • Efectivo físico: ${monto_final_efectivo:.2f}
         • Diferencia: ${abs(diferencia):.2f} ({estado_diferencia})
+        
+        RESUMEN BILLETERAS VIRTUALES:
+        • Ingresos por ventas BV: ${ingresos_bv:.2f} ({ventas_bv_count} ventas)
+        • Egresos por compras BV: ${egresos_bv:.2f} ({compras_bv_count} compras)
+        • Saldo neto BV: ${(ingresos_bv - egresos_bv):.2f}
+        
+        TOTALES DEL CICLO:
+        • Ventas totales: {ventas_efectivo_count + ventas_bv_count} transacciones
+        • Compras totales: {compras_efectivo_count + compras_bv_count} transacciones
+        • Movimiento total: ${(ingresos_efectivo + ingresos_bv - egresos_efectivo - egresos_bv):.2f}
         """
         
         if is_ajax:
@@ -500,11 +554,16 @@ def registrar_cierre_arqueo(request, caja_id):
                 'estado_diferencia': estado_diferencia,
                 'resumen': {
                     'efectivo_inicial': float(monto_inicial),
-                    'ingresos_ventas': float(ingresos_efectivo),
-                    'egresos_compras': float(egresos_efectivo),
-                    'saldo_esperado': float(saldo_esperado),
+                    'ingresos_efectivo': float(ingresos_efectivo),
+                    'egresos_efectivo': float(egresos_efectivo),
+                    'saldo_esperado_efectivo': float(saldo_esperado_efectivo),
                     'efectivo_fisico': float(monto_final_efectivo),
-                    'ventas_realizadas': ventas_ciclo.count()
+                    'ingresos_bv': float(ingresos_bv),
+                    'egresos_bv': float(egresos_bv),
+                    'ventas_efectivo_count': ventas_efectivo_count,
+                    'ventas_bv_count': ventas_bv_count,
+                    'compras_efectivo_count': compras_efectivo_count,
+                    'compras_bv_count': compras_bv_count
                 }
             }, status=200)
         else:

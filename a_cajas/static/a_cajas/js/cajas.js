@@ -521,35 +521,43 @@ $(document).ready(function() {
             // CARGAR DATOS AUTOMÁTICOS DEL ARQUEO
             cargarDatosArqueoAutomaticos(idCaja)
                 .then(datosArqueo => {
-                    console.log("Datos del arqueo cargados:", datosArqueo); // Para debugging
-                    
-                    // Llenar el modal de cierre con datos automáticos
-                    $('#cerrar_id_arqueo').val(datosArqueo.id_arqueo);
-                    $('#cerrar_id_caja').val(idCaja);
-                    $('#cerrar_local').val(rowData.id_loc_com__nombre_loc_com);
-                    $('#cerrar_numero_caja').val(rowData.numero_caja);
-                    
-                    // Datos automáticos calculados
-                    $('#cerrar_efectivo_inicial_readonly').val(formatCurrency(datosArqueo.monto_inicial_efectivo));
-                    $('#cerrar_efectivo_inicial').val(datosArqueo.monto_inicial_efectivo);
-                    
-                    // Mostrar resumen automático
-                    $('#resumen_ingresos').text(formatCurrency(datosArqueo.total_ingresos_efectivo));
-                    $('#resumen_egresos').text(formatCurrency(datosArqueo.total_egresos_efectivo));
-                    $('#resumen_saldo_esperado').text(formatCurrency(datosArqueo.saldo_esperado_efectivo));
-                    $('#resumen_ventas').text(datosArqueo.ventas_realizadas || 0);
-                    
-                    // Establecer el saldo esperado como valor sugerido para el monto final
-                    $('#cerrar_efectivo_final').val(datosArqueo.saldo_esperado_efectivo.toFixed(2));
-                    
-                    $('#cerrarCajaForm').attr('action', actionUrl);
+                console.log("Datos del arqueo cargados:", datosArqueo);
+                
+                // Llenar el modal de cierre con datos automáticos
+                $('#cerrar_id_arqueo').val(datosArqueo.id_arqueo);
+                $('#cerrar_id_caja').val(idCaja);
+                $('#cerrar_local').val(rowData.id_loc_com__nombre_loc_com);
+                $('#cerrar_numero_caja').val(rowData.numero_caja);
+                
+                // Datos automáticos calculados - EFECTIVO
+                $('#cerrar_efectivo_inicial_readonly').val(formatCurrency(datosArqueo.monto_inicial_efectivo));
+                $('#cerrar_efectivo_inicial').val(datosArqueo.monto_inicial_efectivo);
+                
+                // Mostrar resumen automático COMPLETO
+                $('#resumen_ingresos').text(formatCurrency(datosArqueo.total_ingresos_efectivo));
+                $('#resumen_egresos').text(formatCurrency(datosArqueo.total_egresos_efectivo));
+                $('#resumen_saldo_esperado').text(formatCurrency(datosArqueo.saldo_esperado_efectivo));
+                $('#resumen_ventas').text(datosArqueo.ventas_total_count || 0);
+                
+                // Mostrar información de billeteras virtuales
+                $('#resumen_ingresos_bv').text(formatCurrency(datosArqueo.total_ingresos_bv));
+                $('#resumen_egresos_bv').text(formatCurrency(datosArqueo.total_egresos_bv));
+                
+                // Establecer el saldo esperado como valor sugerido para el monto final
+                $('#cerrar_efectivo_final').val(datosArqueo.saldo_esperado_efectivo.toFixed(2));
+                
+                // Los campos de BV se llenan automáticamente (no editables por el usuario)
+                $('#cerrar_ingresos_bv').val(datosArqueo.total_ingresos_bv.toFixed(2));
+                $('#cerrar_egresos_bv').val(datosArqueo.total_egresos_bv.toFixed(2));
+                
+                $('#cerrarCajaForm').attr('action', actionUrl);
 
-                    // Limpiar errores previos
-                    $('#cerrarCajaForm').find('.form-control').removeClass('is-invalid');
-                    $('#cerrarCajaForm').find('.invalid-feedback').empty();
-                    $('#cerrar-error-alert').addClass('d-none').text('');
+                // Limpiar errores previos
+                $('#cerrarCajaForm').find('.form-control').removeClass('is-invalid');
+                $('#cerrarCajaForm').find('.invalid-feedback').empty();
+                $('#cerrar-error-alert').addClass('d-none').text('');
 
-                    $('#cerrarCajaModal').modal('show');
+                $('#cerrarCajaModal').modal('show');
                 })
                 .catch(error => {
                     console.error("Error al cargar datos del arqueo:", error);

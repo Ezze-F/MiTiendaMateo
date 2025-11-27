@@ -1,16 +1,16 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods, require_POST
 from django.db import transaction
 from django.contrib import messages
 from django.utils import timezone
+from django.template.loader import render_to_string
 from datetime import datetime, date
 from decimal import Decimal
 import json
-
 from .models import Ventas, DetallesVentas
 from .forms import VentaForm, DetalleVentaForm
-from a_central.models import Productos, Empleados, LocalesComerciales
+from a_central.models import Productos, Empleados, LocalesComerciales, BilleterasVirtuales
 from a_stock.models import Stock, LoteProducto
 from a_cajas.models import Cajas, PagosVentas, MovimientosFinancieros, ArqueoCaja
 
@@ -66,10 +66,17 @@ def registrar_venta(request):
                 id_loc_com = request.POST.get('id_loc_com')
                 id_caja = request.POST.get('id_caja')
                 id_empleado = request.POST.get('id_empleado')
+                tipo_venta = request.POST.get('tipo_venta', 'EFECTIVO')
+                id_billetera = request.POST.get('id_billetera')  # Nuevo: billetera seleccionada
                 
                 # Validar campos requeridos
                 if not all([id_loc_com, id_caja, id_empleado]):
                     messages.error(request, 'Todos los campos son requeridos')
+                    return redirect('a_ventas:registrar_venta')
+                
+                # Validar billetera para ventas BV
+                if tipo_venta == 'BV' and not id_billetera:
+                    messages.error(request, 'Debe seleccionar una billetera virtual para ventas BV')
                     return redirect('a_ventas:registrar_venta')
                 
                 # Crear la venta
@@ -106,14 +113,11 @@ def registrar_venta(request):
                                     f"Stock insuficiente. Solicitado: {cantidad}, Disponible: {stock_total.stock_pxlc}"
                                 )
                             
-                            # REDUCIR STOCK DE LOTES (método FIFO - vencimiento más cercano primero)
+                            # REDUCIR STOCK DE LOTES
                             if not reducir_stock_de_lotes(producto_id, id_loc_com, cantidad):
                                 raise Exception(
                                     f"Error al reducir stock de lotes para el producto ID {producto_id}"
                                 )
-                            
-                            # ACTUALIZAR STOCK TOTAL (se sincronizará automáticamente por la señal)
-                            # La señal post_save de LoteProducto actualizará el stock total
                             
                             # Crear detalle de venta
                             detalle = DetallesVentas(
@@ -141,7 +145,7 @@ def registrar_venta(request):
                 venta.total_venta = total_venta
                 venta.save()
                 
-                # Registrar movimiento financiero si hay caja
+                # Registrar movimiento financiero según el tipo de venta
                 if venta.id_caja:
                     arqueo_activo = ArqueoCaja.objects.filter(
                         id_caja=venta.id_caja,
@@ -149,33 +153,153 @@ def registrar_venta(request):
                     ).first()
                     
                     if arqueo_activo:
-                        MovimientosFinancieros.objects.create(
+                        medio_pago = 'BILLETERA_VIRTUAL' if tipo_venta == 'BV' else 'EFECTIVO'
+                        movimiento = MovimientosFinancieros.objects.create(
                             id_arqueo=arqueo_activo,
-                            medio_pago='EFECTIVO',
+                            medio_pago=medio_pago,
                             tipo_movimiento='INGRESO',
-                            concepto=f'Venta #{venta.id_venta}',
+                            concepto=f'Venta #{venta.id_venta} ({tipo_venta})',
                             monto=total_venta,
                             fh_movimiento=timezone.now()
                         )
                 
-                messages.success(request, f'Venta registrada exitosamente. Total: ${total_venta:.2f}')
+              # ACTUALIZAR SALDO DE BILLETERA VIRTUAL SI ES VENTA BV
+                billetera = None
+                if tipo_venta == 'BV' and id_billetera:
+                    try:
+                        billetera = BilleterasVirtuales.objects.get(pk=id_billetera)
+                        billetera.saldo_bv += total_venta
+                        billetera.save()
+                    except BilleterasVirtuales.DoesNotExist:
+                        raise Exception("Billetera virtual seleccionada no existe")
+                
+                mensaje = f'Venta {tipo_venta} registrada exitosamente. Total: ${total_venta:.2f}'
+                if tipo_venta == 'BV' and billetera:
+                    mensaje += f' - Billetera: {billetera.nombre_bv}'
+                messages.success(request, mensaje)
                 return redirect('a_ventas:detalle_venta', venta_id=venta.id_venta)
                 
         except Exception as e:
             messages.error(request, f'Error al registrar la venta: {str(e)}')
     
+        # GET request - mostrar formulario vacío
+        form = VentaForm()
+        locales = LocalesComerciales.objects.filter(borrado_loc_com=False)
+        empleados = Empleados.objects.filter(borrado_emp=False)
+        billeteras = BilleterasVirtuales.objects.filter(borrado_bv=False)
+        
+        context = {
+            'form': form,
+            'locales': locales,
+            'empleados': empleados,
+            'billeteras': billeteras,
+            'page_title': 'Registrar Nueva Venta'
+        }
+        return render(request, 'a_ventas/registrar_venta.html', context)
+    
     # GET request - mostrar formulario vacío
     form = VentaForm()
     locales = LocalesComerciales.objects.filter(borrado_loc_com=False)
     empleados = Empleados.objects.filter(borrado_emp=False)
+    billeteras = BilleterasVirtuales.objects.filter(borrado_bv=False)  # Para el select de billeteras
     
     context = {
         'form': form,
         'locales': locales,
         'empleados': empleados,
+        'billeteras': billeteras,  # Nuevo: pasar billeteras al template
         'page_title': 'Registrar Nueva Venta'
     }
     return render(request, 'a_ventas/registrar_venta.html', context)
+
+def detalle_venta(request, venta_id):
+    """Muestra el detalle de una venta específica"""
+    venta = get_object_or_404(Ventas, pk=venta_id)
+    detalles = DetallesVentas.objects.filter(
+        id_venta=venta, 
+        borrado_det_v=False
+    ).select_related('id_producto')
+    
+    # Determinar tipo de venta basado en movimientos financieros
+    tipo_venta = 'EFECTIVO'
+    billetera_utilizada = None
+    
+    try:
+        movimiento = MovimientosFinancieros.objects.filter(
+            concepto__contains=f'Venta #{venta_id}'
+        ).first()
+        if movimiento and 'BV' in movimiento.concepto:
+            tipo_venta = 'BV'
+            # Podríamos intentar extraer info de billetera del concepto si la guardamos
+    except:
+        pass
+    
+    context = {
+        'venta': venta,
+        'detalles': detalles,
+        'tipo_venta': tipo_venta,
+        'billetera_utilizada': billetera_utilizada,
+        'page_title': f'Detalle de Venta #{venta_id}'
+    }
+    return render(request, 'a_ventas/detalle_venta.html', context)
+
+def detalle_venta(request, venta_id):
+    """Muestra el detalle de una venta específica"""
+    venta = get_object_or_404(Ventas, pk=venta_id)
+    detalles = DetallesVentas.objects.filter(
+        id_venta=venta, 
+        borrado_det_v=False
+    ).select_related('id_producto')
+    
+    # Determinar tipo de venta basado en movimientos financieros
+    tipo_venta = 'EFECTIVO'  # Por defecto
+    try:
+        movimiento = MovimientosFinancieros.objects.filter(
+            concepto__contains=f'Venta #{venta_id}'
+        ).first()
+        if movimiento and 'BV' in movimiento.concepto:
+            tipo_venta = 'BV'
+    except:
+        pass
+    
+    context = {
+        'venta': venta,
+        'detalles': detalles,
+        'tipo_venta': tipo_venta,  # Pasamos el tipo calculado al template
+        'page_title': f'Detalle de Venta #{venta_id}'
+    }
+    return render(request, 'a_ventas/detalle_venta.html', context)
+
+def imprimir_ticket(request, venta_id):
+    """Genera un ticket de venta estilo supermercado"""
+    venta = get_object_or_404(Ventas, pk=venta_id)
+    detalles = DetallesVentas.objects.filter(
+        id_venta=venta, 
+        borrado_det_v=False
+    ).select_related('id_producto')
+    
+    # Determinar tipo de venta
+    tipo_venta = 'EFECTIVO'
+    try:
+        movimiento = MovimientosFinancieros.objects.filter(
+            concepto__contains=f'Venta #{venta_id}'
+        ).first()
+        if movimiento and 'BV' in movimiento.concepto:
+            tipo_venta = 'BV'
+    except:
+        pass
+    
+    context = {
+        'venta': venta,
+        'detalles': detalles,
+        'tipo_venta': tipo_venta,
+    }
+    
+    # Renderizar como HTML para impresión
+    html_content = render_to_string('a_ventas/ticket_venta.html', context)
+    
+    response = HttpResponse(html_content)
+    return response
 
 def detalle_venta(request, venta_id):
     """Muestra el detalle de una venta específica"""

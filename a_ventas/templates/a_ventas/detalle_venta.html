@@ -1,4 +1,5 @@
 {% extends 'a_inicio/base.html' %}
+{% load static %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -8,9 +9,15 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2>{{ page_title }}</h2>
-                <a href="{% url 'a_ventas:listar_ventas' %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Volver
-                </a>
+                <div>
+                    <a href="{% url 'a_ventas:imprimir_ticket' venta.id_venta %}" 
+                       class="btn btn-info" target="_blank">
+                        <i class="fas fa-receipt"></i> Imprimir Ticket
+                    </a>
+                    <a href="{% url 'a_ventas:listar_ventas' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
             </div>
 
             <div class="row">
@@ -29,6 +36,13 @@
                                     Caja {{ venta.id_caja.numero_caja }}
                                 {% else %}
                                     N/A
+                                {% endif %}
+                            </p>
+                            <p><strong>Tipo de Venta:</strong> 
+                                {% if tipo_venta == 'BV' %}
+                                    <span class="badge bg-primary">Billetera Virtual</span>
+                                {% else %}
+                                    <span class="badge bg-success">Efectivo</span>
                                 {% endif %}
                             </p>
                             <p><strong>Total:</strong> ${{ venta.total_venta }}</p>
