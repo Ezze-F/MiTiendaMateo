@@ -20,6 +20,10 @@
         </div>
     </div>
 
+    <a href="{% url 'a_central:repEmpDispo' %}" class="btn btn-secondary">Reporte Disponibles</a>
+    <a href="{% url 'a_central:repEmpElim' %}" class="btn btn-secondary">Reporte Eliminados</a>
+    <a href="{% url 'a_central:repEmpTodos' %}" class="btn btn-secondary">Reporte Todos</a>
+
     <ul class="nav nav-tabs" id="empleadosTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#empleadosDisponiblesTab" type="button" role="tab" aria-controls="empleadosDisponiblesTab" aria-selected="true">Empleados disponibles</button>

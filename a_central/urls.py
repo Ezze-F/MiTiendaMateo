@@ -13,7 +13,10 @@ urlpatterns = [
     path('empleados/registrar/', views.registrar_empleado, name='registrar_empleado'),               
     path('empleados/modificar/<int:empleado_id>/', views.modificar_empleado, name='modificar_empleado'), 
     path('empleados/borrar/<int:empleado_id>/', views.borrar_empleado, name='borrar_empleado'),           
-    path('empleados/recuperar/<int:empleado_id>/', views.recuperar_empleado, name='recuperar_empleado'), 
+    path('empleados/recuperar/<int:empleado_id>/', views.recuperar_empleado, name='recuperar_empleado'),
+    path("reporte_emp_disponibles/", views.rep_emp_disponibles_pdf, name="repEmpDispo"),
+    path("reporte_emp_eliminados/", views.rep_emp_eliminados_pdf, name="repEmpElim"),
+    path("reporte_emp_todos/", views.rep_emp_todos_pdf, name="repEmpTodos"), 
     # ==================================
     # RUTAS DE PROVINCIAS
     # ==================================
@@ -54,6 +57,9 @@ urlpatterns = [
     path('locales/modificar/<int:local_id>/', views.modificar_local, name='modificar_local'),
     path('locales/borrar/<int:local_id>/', views.borrar_local, name='borrar_local'),
     path('locales/recuperar/<int:local_id>/', views.recuperar_local, name='recuperar_local'),
+    path("reporte_prov_disponibles/", views.rep_prov_disponibles_pdf, name="repProvDispo"),
+    path("reporte_prov_eliminados/", views.rep_prov_eliminados_pdf, name="repProvElim"),
+    path("reporte_prov_todos/", views.rep_prov_todos_pdf, name="repProvTodos"),
     # ==================================
     # RUTAS DE PRODUCTOS
     # ==================================    
@@ -64,8 +70,11 @@ urlpatterns = [
     path('productos/modificar/<int:producto_id>/', views.modificar_producto, name='modificar_producto'),
     path('productos/borrar/<int:producto_id>/', views.borrar_producto, name='borrar_producto'),
     path('productos/recuperar/<int:producto_id>/', views.recuperar_producto, name='recuperar_producto'),
+    path("reporte_prod_disponibles/", views.rep_prod_disponibles_pdf, name="repProdDispo"),
+    path("reporte_prod_eliminados/", views.rep_prod_eliminados_pdf, name="repProdElim"),
+    path("reporte_prod_todos/", views.rep_prod_todos_pdf, name="repProdTodos"),
     # ==================================
-    # RUTAS DE PRODUCTOS
+    # RUTAS DE BILLETERAS
     # ==================================
     path('billeteras/', views.listar_billeteras, name='listar_billeteras'),
     path('billeteras/disponibles/', views.billeteras_disponibles_api, name='billeteras_disponibles_api'),
@@ -74,4 +83,7 @@ urlpatterns = [
     path('billeteras/modificar/<int:billetera_id>/', views.modificar_billetera, name='modificar_billetera'),
     path('billeteras/borrar/<int:billetera_id>/', views.borrar_billetera, name='borrar_billetera'),
     path('billeteras/recuperar/<int:billetera_id>/', views.recuperar_billetera, name='recuperar_billetera'),
+    path("reporte_bv_disponibles/", views.rep_bv_disponibles_pdf, name="repBVDispo"),
+    path("reporte_bv_eliminadas/", views.rep_bv_eliminadas_pdf, name="repBVElim"),
+    path("reporte_bv_todos/", views.rep_bv_todas_pdf, name="repBVTodos"),
 ]

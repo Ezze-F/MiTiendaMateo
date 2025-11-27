@@ -13,6 +13,11 @@ from django.core.exceptions import ValidationError
 from .models import Empleados, Provincias, Marcas, Proveedores, LocalesComerciales, Productos, BilleterasVirtuales
 from .forms import EmpleadoRegistroForm, ProvinciaForm, MarcaForm, ProveedorRegistroForm, LocalComercialRegistroForm, ProductoRegistroForm, BilleteraRegistroForm, BilleteraModificacionForm
 
+# /*para el reporte*/
+from django.template.loader import get_template
+from django.http import HttpResponse
+from xhtml2pdf import pisa
+
 # Configuración de logging para ver errores en la consola
 logger = logging.getLogger(__name__)
 
@@ -1164,3 +1169,151 @@ def recuperar_billetera(request, billetera_id):
     except Exception as e:
         logger.error(f"Error al restaurar billetera virtual {billetera_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+def rep_bv_disponibles_pdf(request):
+    datos = BilleterasVirtuales.objects.all() # Todas las BilleterasVirtuales disponibles.
+    lista = [[obj.nombre_bv, obj.cbu_bv, obj.saldo_bv, obj.fh_alta_bv] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["Nombre", "CBU", "Saldo", "Alta"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/billeteras/rep_bv_dispo.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "BILLETERAS VIRTUALES (DISPONIBLES)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+def rep_bv_eliminadas_pdf(request):
+    datos = BilleterasVirtuales.all_objects.filter(borrado_bv=True) # Todas las BilleterasVirtuales eliminadas.
+    lista = [[obj.nombre_bv, obj.cbu_bv, obj.saldo_bv, obj.fh_borrado_bv] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["Nombre", "CBU", "Saldo", "Eliminada"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/billeteras/rep_bv_elim.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "BILLETERAS VIRTUALES (ELIMINADAS)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+def rep_bv_todas_pdf(request):
+    datos = BilleterasVirtuales.all_objects.all() # Todas las BilleterasVirtuales no eliminadas.
+    lista = [[obj.nombre_bv, obj.cbu_bv, obj.saldo_bv, obj.fh_alta_bv] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["Nombre", "CBU", "Saldo", "Alta"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/billeteras/rep_bv_todas.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "BILLETERAS VIRTUALES (TODAS)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+
+def rep_emp_disponibles_pdf(request):
+    datos = Empleados.objects.all() # Todos los Empleados disponibles.
+    lista = [[obj.dni_emp, obj.apellido_emp, obj.nombre_emp,  obj.telefono_emp, obj.fecha_alta_emp] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["DNI N°", "Apellido", "Nombre", "Teléfono", "Alta"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/empleados/rep_emp_dispo.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "EMPLEADOS (DISPONIBLES)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+def rep_emp_eliminados_pdf(request):
+    datos = Empleados.all_objects.filter(borrado_emp=True) # Todos los Empleados eliminados.
+    lista = [[obj.dni_emp, obj.apellido_emp, obj.nombre_emp, obj.telefono_emp, obj.fh_borrado_e] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["DNI N°", "Apellido", "Nombre", "Teléfono", "Eliminado"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/empleados/rep_emp_elim.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "EMPLEADOS (ELIMINADOS)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+def rep_emp_todos_pdf(request):
+    datos = Empleados.all_objects.all() # Todos los Empleados disponibles.
+    lista = [[obj.dni_emp, obj.apellido_emp, obj.nombre_emp, obj.telefono_emp, obj.fecha_alta_emp] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["DNI N°", "Apellido", "Nombre", "Teléfono", "Alta"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/empleados/rep_emp_todos.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "EMPLEADOS (TODOS)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+
+def rep_prod_disponibles_pdf(request):
+    datos = Productos.objects.all() # Todos los Productos disponibles.
+    lista = [[obj.nombre_producto, obj.id_marca, obj.fecha_alta_prod] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["Nombre°", "Marca", "Alta"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/productos/rep_prod_dispo.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "PRODUCTOS (DISPONIBLES)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+def rep_prod_eliminados_pdf(request):
+    datos = Productos.all_objects.filter(borrado_prod=True) # Todos los Productos eliminados.
+    lista = [[obj.nombre_producto, obj.id_marca, obj.fecha_alta_prod] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["Nombre°", "Marca", "Eliminado"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/productos/rep_prod_elim.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "PRODUCTOS (ELIMINADOS)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+def rep_prod_todos_pdf(request):
+    datos = Productos.all_objects.all() # Todos los Productos disponibles.
+    lista = [[obj.nombre_producto, obj.id_marca, obj.fecha_alta_prod] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["Nombre°", "Marca", "Alta"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/productos/rep_prod_todos.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "PRODUCTOS (TODOS)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+
+def rep_prov_disponibles_pdf(request):
+    datos = Proveedores.objects.all() # Todos los Proveedores disponibles.
+    lista = [[obj.cuit_prov, obj.nombre_prov, obj.telefono_prov, obj.fecha_alta_prov] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["CUIT", "Nombre", "Teléfono", "Alta"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/proveedores/rep_prov_dispo.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "PROVEEDORES (DISPONIBLES)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+def rep_prov_eliminados_pdf(request):
+    datos = Proveedores.all_objects.filter(borrado_prov=True) # Todos los Proveedores eliminados.
+    lista = [[obj.cuit_prov, obj.nombre_prov, obj.telefono_prov, obj.fh_borrado_prov] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["CUIT", "Nombre", "Teléfono", "Eliminado"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/proveedores/rep_prov_elim.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "PROVEEDORES (ELIMINADOS)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response
+
+def rep_prov_todos_pdf(request):
+    datos = Proveedores.all_objects.all() # Todos los Proveedores disponibles.
+    lista = [[obj.cuit_prov, obj.nombre_prov, obj.telefono_prov, obj.fecha_alta_prov] for obj in datos]  # Ajustar campos de acuerdo al models que se utiliza.
+    encabezados = ["CUIT", "Nombre", "Teléfono", "Alta"] # Aquí se eligen cómo se mostrarán los encabezados de la tabla del reporte.
+    template = get_template("a_central/proveedores/rep_prov_todos.html") # html para ser utilizado y generar el reporte.
+    context = {"titulo": "PROVEEDORES (TODOS)", "datos": lista, "encabezados": encabezados}
+    html = template.render(context) # El template es renderizado con lo que contenga context, en la variable html
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=reporte.pdf"
+    pisa.CreatePDF(html, dest=response) # Se crea el pdf en base al contenido de la variable html
+    return response

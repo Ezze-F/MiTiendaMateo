@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de {{ titulo }}</title>
+    <style>
+        body { font-family: sans-serif; font-size: 12px; }
+        .container { width: 90%; margin: 0 auto; }
+        .text-center { text-align: center; }
+        .mt-4 { margin-top: 1.5rem; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .table th, .table td { border: 1px solid #dee2e6; padding: 0.75rem; text-align: left; vertical-align: top; }
+        .table thead th { vertical-align: bottom; border-bottom: 2px solid #dee2e6; background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2 class="text-center">{{ titulo }}</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    {% for header in encabezados %}
+                        <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for fila in datos %}
+                <tr>
+                    {% for valor in fila %}
+                        <td>
+                            {% comment %}
+                                El campo de fecha (fh_borrado_prod) es el tercer (forloop.counter == 3)
+                                [Nombre(1), Marca(2), Eliminado(3)]
+                            {% endcomment %}
+                            {% if forloop.counter == 3 %}
+                                {{ valor|date:"d/m/Y" }}
+                            {% else %}
+                                {{ valor }}
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
