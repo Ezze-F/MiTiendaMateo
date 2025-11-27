@@ -1,8 +1,93 @@
 {% extends 'a_inicio/base.html' %}
+{% load static %}
+
+{% block title %}Inicio - Bienvenido{% endblock %}
+
+{% block styles %}
+<style>
+    /* Estilos específicos para la página de inicio */
+    .welcome-card {
+        background-color: #ffffff;
+        border: 1px solid #dee2eec4;
+        border-radius: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        padding: 40px;
+        text-align: center;
+        margin-top: 50px;
+        transition: transform 0.3s ease;
+    }
+    .welcome-card:hover {
+        transform: translateY(-5px);
+    }
+    .welcome-icon {
+        color: #4db8ff; /* Color principal */
+        font-size: 5rem;
+        margin-bottom: 20px;
+    }
+    .welcome-title {
+        color: #343a40;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    .welcome-role {
+        color: #6c757d;
+        font-size: 1.1rem;
+        font-style: italic;
+        margin-bottom: 30px;
+    }
+    .welcome-message {
+        color: #495057;
+        font-size: 1.05rem;
+    }
+    .cta-link {
+        margin-top: 30px;
+        font-size: 1rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <h1 class="mt-4">Bienvenido</h1>
-    <p>Gracias por utilizar este software.</p>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="welcome-card">
+                
+                <i class="fas fa-handshake welcome-icon"></i>
+                
+                {% if user.is_authenticated %}
+                    
+                    <h1 class="welcome-title">
+                        ¡Bienvenido/a, {{ user.username|capfirst }}!
+                    </h1>
+
+                    {% comment %} 
+                        Nota: Debes pasar la variable 'rol_actual' desde la vista (views.py)
+                        para que esta sección muestre el nombre del grupo del usuario.
+                        Si no pasas la variable, solo mostrará el texto "Usuario del sistema".
+                    {% endcomment %}
+                    <p class="welcome-role">
+                        {% if rol_actual %}
+                            Rol asignado: **{{ rol_actual|upper }}**
+                        {% else %}
+                            Usuario del sistema
+                        {% endif %}
+                    </p>
+                    
+                    <p class="welcome-message">
+                        Tu acceso a las funcionalidades del sistema MiTiendaMateo está listo.
+                        Utiliza el menú lateral para comenzar a gestionar ventas, inventario y otros módulos.
+                    </p>
+
+                    
+                    
+                {% else %}
+                    <h1 class="welcome-title">Bienvenido a MiTiendaMateo</h1>
+                    <p class="welcome-message">
+                        Por favor, inicia sesión para acceder a las herramientas de gestión.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

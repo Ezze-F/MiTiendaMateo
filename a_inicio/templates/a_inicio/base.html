@@ -25,23 +25,48 @@
             font-weight: 600;
             color: #333;
         }
-        /* Ajustar el contenedor flex para los elementos de la derecha */
-        .header-controls {
+        
+        /* Estilos para el nuevo contenedor principal de la derecha */
+        .header-user-controls {
+            display: flex;
+            /* Coloca los elementos verticalmente (Usuario arriba, Reloj abajo) */
+            flex-direction: column; 
+            align-items: flex-end; /* Alinea los elementos a la derecha */
+            margin-left: auto; /* Mueve el contenedor a la derecha de la cabecera */
+        }
+
+        /* Estilos para la fila superior (usuario y cerrar sesión) */
+        .user-session-row {
             display: flex;
             align-items: center;
+            /* Ajuste de margen para separar del reloj si es necesario */
+            margin-bottom: 0.2rem; 
         }
+
+        /* Estilos para el reloj */
+        .reloj-fecha {
+            /* Asegura que el texto del reloj se mantenga en una sola línea */
+            white-space: nowrap; 
+            font-size: 0.85rem; /* Ajuste el tamaño para que quepa bien */
+            margin: 0; /* Elimina el margen por defecto del p */
+            color: #ffffff; /* Color sutil para el reloj */
+            text-transform: uppercase;
+        }
+
         /* Mejorar el estilo visual del botón/enlace de logout */
         #logout-link {
+            background-color: #bb3542;
             text-decoration: none;
-            padding: 0.5rem 1rem;
+            padding: 0.2rem 0.5rem; /* Reducido el padding para que sea más compacto */
             border-radius: 9999px;
             font-weight: 500;
-            border-color: #dc3545;
-            color: #dc3545;
+            border: 1px solid #e6ced1; /* Añadido borde para mejor visual */
+            color: #e6ced1;
             transition: all 0.2s;
+            font-size: 0.9rem; /* Ajuste el tamaño de fuente */
         }
         #logout-link:hover {
-            background-color: #dc3545;
+            background-color: #fc021b;
             color: white;
         }
     </style>
@@ -91,38 +116,40 @@
                 </ul>
             </nav>
 
-            <a href="#">Términos y condiciones</a>
-            <a href="#">Políticas y privacidad</a>
+            <a href="{% url 'a_inicio:terminos_condiciones' %}">Términos y condiciones</a>
+            
         </aside>
 
         <div class="content">
             <header>
                 <button id="menu-toggle" class="bg-transparent border-0"><i class="fas fa-bars fa-2x"></i></button>
+                
                 <div class="header-title">
                     <img src="{% static 'img/logo.png' %}" alt="Logo de Mi Tienda Mateo" class="d-none d-md-block header-logo">
                     <h1 class="d-none d-md-block">Mi Tienda Mateo</h1>
                 </div>
                 
-                <!-- Reloj -->
-                <p class="reloj-fecha"> 
-                    <span id="reloj-dinamico" style="font-weight: bold;"></span>
-                </p>
-
-                <div class="header-controls">
+                <div class="header-user-controls">
                     {% if user.is_authenticated %}
-                        <span class="user-info d-none d-sm-block mr-3">
-                            <i class="fa-solid fa-user fa-lg mr-2"></i> 
-                            {{ user.username }}
-                        </span>
-                        
-                        <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
-                            {% csrf_token %}
-                        </form>
+                        <div class="user-session-row">
+                            <span class="user-info d-none d-sm-block mr-3">
+                                <i class="fa-solid fa-user fa-lg mr-2"></i> 
+                                {{ user.username }}
+                            </span>
+                            
+                            <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
+                                {% csrf_token %}
+                            </form>
 
-                        <a href="#" id="logout-link" class="d-flex align-items-center">
-                            <i class="fas fa-sign-out-alt mr-2"></i> 
-                            Cerrar Sesión
-                        </a>
+                            <a href="#" id="logout-link" class="d-flex align-items-center">
+                                <i class="fas fa-sign-out-alt mr-2"></i> 
+                                Cerrar Sesión
+                            </a>
+                        </div>
+                        
+                        <p class="reloj-fecha"> 
+                            <span id="reloj-dinamico" style="font-weight: bold;"></span>
+                        </p>
                         
                     {% else %}
                         <i class="fa-solid fa-user fa-2xl"></i>

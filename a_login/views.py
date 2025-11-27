@@ -65,7 +65,7 @@ def login_view(request):
                     profile.last_login_fail = None
                     profile.save()
                     
-                messages.success(request, f'Bienvenido(a), {user_auth.username}.')
+                #messages.success(request, f'Bienvenido(a), {user_auth.username}.')
                 return redirect(settings.LOGIN_REDIRECT_URL)
             
             else:

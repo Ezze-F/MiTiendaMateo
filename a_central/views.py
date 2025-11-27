@@ -4,7 +4,10 @@ from django.views.decorators.http import require_POST, require_GET
 from django.db import IntegrityError, transaction # Importar transaction para atomicidad
 from django.utils import timezone
 from datetime import date
-import logging 
+import logging
+
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import permission_required
 
 # Importaciones clave para autenticación y roles
 from django.contrib.auth.models import User, Group
@@ -79,6 +82,8 @@ def _serialize_empleados(queryset, is_deleted_view):
 
 
 # --- VISTA PRINCIPAL EMPLEADOS (No modificada) ---
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def listar_empleados(request):
     """Renderiza la plantilla principal de gestión de empleados y envía los roles."""
     roles = Group.objects.all().order_by('name')
@@ -89,6 +94,8 @@ def listar_empleados(request):
 
 
 # --- API - LISTADO DE EMPLEADOS DISPONIBLES (Uso del Manager por defecto) ---
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def empleados_disponibles_api(request):
     """Devuelve los datos de empleados activos para DataTables."""
     if request.method == 'GET':
@@ -103,6 +110,8 @@ def empleados_disponibles_api(request):
 
 
 # --- API - LISTADO DE EMPLEADOS ELIMINADOS (Uso del Manager all_objects) ---
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def empleados_eliminados_api(request):
     """Devuelve los datos de empleados inactivos/eliminados para DataTables."""
     if request.method == 'GET':
@@ -120,6 +129,8 @@ def empleados_eliminados_api(request):
 # ... (registrar_empleado y modificar_empleado no modificados, pues se usan Managers en la validación del form) ...
 
 @require_POST
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def registrar_empleado(request):
     """
     Vista para registrar un nuevo empleado y crear su usuario asociado en el sistema de autenticación.
@@ -177,6 +188,8 @@ def registrar_empleado(request):
         return JsonResponse({'success': False, 'error': f'Ocurrió un error inesperado: {str(e)}'})
         
 @require_POST
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def modificar_empleado(request, empleado_id):
     # Lógica de modificación de empleado (Uso all_objects para encontrarlo si está borrado lógicamente, aunque en principio solo se debería modificar uno activo)
     # Mejor usar Empleados.objects para buscar solo entre los activos para la modificación
@@ -251,6 +264,8 @@ def modificar_empleado(request, empleado_id):
 
 
 @require_POST
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def borrar_empleado(request, empleado_id):
     """Realiza el borrado lógico de un empleado activo."""
     try:
@@ -272,6 +287,8 @@ def borrar_empleado(request, empleado_id):
         return JsonResponse({'success': False, 'error': str(e)})
 
 @require_POST
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def recuperar_empleado(request, empleado_id):
     """Restaura un empleado previamente borrado lógicamente."""
     try:
@@ -295,7 +312,8 @@ def recuperar_empleado(request, empleado_id):
 # ===============================================
 # PROVINCIAS
 # ===============================================
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def _serialize_provincias(queryset, is_deleted_view):
     """Serializa un queryset de Provincias para DataTables."""
     data = []
@@ -313,11 +331,15 @@ def _serialize_provincias(queryset, is_deleted_view):
         data.append(provincia_data)
     return data
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def listar_provincias(request):
     """Renderiza la plantilla principal de gestión de provincias."""
     # No se necesita contexto por ahora, pero se mantiene la estructura.
     return render(request, 'a_central/provincias/listar_provincias.html', {})
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_GET
 def provincias_disponibles_api(request):
     """Devuelve los datos de provincias activas para DataTables (Usa ProvinciaManager)."""
@@ -330,6 +352,8 @@ def provincias_disponibles_api(request):
         logger.error(f"Error al serializar provincias disponibles: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener provincias disponibles.'}, status=500)
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_GET
 def provincias_eliminadas_api(request):
     """Devuelve los datos de provincias eliminadas para DataTables (Usa ProvinciaAllObjectsManager)."""
@@ -342,6 +366,8 @@ def provincias_eliminadas_api(request):
         logger.error(f"Error al serializar provincias eliminadas: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener provincias eliminadas.'}, status=500)
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def registrar_provincia(request):
     """Vista para registrar una nueva provincia."""
@@ -364,6 +390,8 @@ def registrar_provincia(request):
         errors = _form_errors_to_dict(form)
         return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors}, status=400)
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def modificar_provincia(request, provincia_id):
     """Vista para modificar una provincia existente."""
@@ -386,6 +414,8 @@ def modificar_provincia(request, provincia_id):
         errors = _form_errors_to_dict(form)
         return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors}, status=400)
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def borrar_provincia(request, provincia_id):
     """Realiza el borrado lógico de una provincia activa."""
@@ -402,6 +432,8 @@ def borrar_provincia(request, provincia_id):
         logger.error(f"Error al borrar provincia {provincia_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def recuperar_provincia(request, provincia_id):
     """Restaura una provincia previamente borrada lógicamente."""
@@ -423,6 +455,8 @@ def recuperar_provincia(request, provincia_id):
 # MARCAS
 # ===============================================
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def _serialize_marcas(queryset, is_deleted_view):
     """Serializa un queryset de Marcas para DataTables."""
     data = []
@@ -440,12 +474,14 @@ def _serialize_marcas(queryset, is_deleted_view):
         data.append(marca_data)
     return data
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def listar_marcas(request):
     """Renderiza la plantilla principal de gestión de marcas."""
     return render(request, 'a_central/marcas/listar_marcas.html', {})
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_GET
 def marcas_disponibles_api(request):
     """Devuelve los datos de marcas activas (usando MarcaManager)."""
@@ -457,7 +493,8 @@ def marcas_disponibles_api(request):
         logger.error(f"Error al serializar marcas disponibles: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener marcas disponibles.'}, status=500)
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_GET
 def marcas_eliminadas_api(request):
     """Devuelve los datos de marcas eliminadas (usando MarcaAllObjectsManager)."""
@@ -469,7 +506,8 @@ def marcas_eliminadas_api(request):
         logger.error(f"Error al serializar marcas eliminadas: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener marcas eliminadas.'}, status=500)
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def registrar_marca(request):
     """Registra una nueva marca."""
@@ -491,7 +529,8 @@ def registrar_marca(request):
         errors = _form_errors_to_dict(form)
         return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors}, status=400)
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def modificar_marca(request, marca_id):
     """Modifica una marca existente."""
@@ -512,7 +551,8 @@ def modificar_marca(request, marca_id):
         errors = _form_errors_to_dict(form)
         return JsonResponse({'success': False, 'error': 'Error de validación', 'details': errors}, status=400)
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def borrar_marca(request, marca_id):
     """Realiza el borrado lógico de una marca activa."""
@@ -528,7 +568,8 @@ def borrar_marca(request, marca_id):
         logger.error(f"Error al borrar marca {marca_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def recuperar_marca(request, marca_id):
     """Restaura una marca previamente borrada lógicamente."""
@@ -548,6 +589,8 @@ def recuperar_marca(request, marca_id):
 # PROVEEDORES
 # ===============================================
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def _serialize_proveedores(queryset, is_deleted_view):
     """Serializa proveedores para DataTables."""
     data = []
@@ -570,11 +613,14 @@ def _serialize_proveedores(queryset, is_deleted_view):
         data.append(proveedor_data)
     return data
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def listar_proveedores(request):
     """Renderiza la página principal de proveedores."""
     return render(request, 'a_central/proveedores/listar_proveedores.html')
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_GET
 def proveedores_disponibles_api(request):
     """Devuelve proveedores activos."""
@@ -586,7 +632,8 @@ def proveedores_disponibles_api(request):
         logger.error(f"Error al listar proveedores: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener proveedores.'}, status=500)
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_GET
 def proveedores_eliminados_api(request):
     """Devuelve proveedores borrados lógicamente."""
@@ -598,6 +645,8 @@ def proveedores_eliminados_api(request):
         logger.error(f"Error al listar proveedores eliminados: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener proveedores eliminados.'}, status=500)
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def registrar_proveedor(request):
     """Crea un nuevo proveedor."""
@@ -625,7 +674,8 @@ def registrar_proveedor(request):
         logger.error(f"Error al registrar proveedor: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def modificar_proveedor(request, proveedor_id):
     """Edita los datos de un proveedor."""
@@ -659,7 +709,8 @@ def modificar_proveedor(request, proveedor_id):
         logger.error(f"Error al modificar proveedor {proveedor_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def borrar_proveedor(request, proveedor_id):
     """Borrado lógico de proveedor."""
@@ -675,7 +726,8 @@ def borrar_proveedor(request, proveedor_id):
         logger.error(f"Error al borrar proveedor {proveedor_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def recuperar_proveedor(request, proveedor_id):
     """Restaurar proveedor borrado lógicamente."""
@@ -696,6 +748,8 @@ def recuperar_proveedor(request, proveedor_id):
 # LOCALES COMERCIALES
 # ===============================================
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def _serialize_locales(queryset, is_deleted_view):
     """Serializa locales comerciales para DataTables."""
     data = []
@@ -718,13 +772,16 @@ def _serialize_locales(queryset, is_deleted_view):
         data.append(local_data)
     return data
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def listar_locales(request):
     """Renderiza la página principal de locales comerciales."""
     form = LocalComercialRegistroForm()
     provincias = Provincias.objects.all() # Para el select de modificación/registro
     return render(request, 'a_central/locales/listar_locales.html', {'form': form, 'provincias': provincias})
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_GET
 def locales_disponibles_api(request):
     """Devuelve locales activos."""
@@ -736,7 +793,8 @@ def locales_disponibles_api(request):
         logger.error(f"Error al listar locales disponibles: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener locales.'}, status=500)
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_GET
 def locales_eliminados_api(request):
     """Devuelve locales borrados lógicamente."""
@@ -748,6 +806,8 @@ def locales_eliminados_api(request):
         logger.error(f"Error al listar locales eliminados: {e}", exc_info=True)
         return JsonResponse({'error': 'Error interno al obtener locales eliminados.'}, status=500)
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def registrar_local(request):
     """Crea un nuevo local comercial."""
@@ -776,7 +836,8 @@ def registrar_local(request):
         logger.error(f"Error al registrar local: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def modificar_local(request, local_id):
     """Edita los datos de un local comercial."""
@@ -815,7 +876,8 @@ def modificar_local(request, local_id):
         logger.error(f"Error al modificar local {local_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def borrar_local(request, local_id):
     """Borrado lógico de local comercial."""
@@ -831,7 +893,8 @@ def borrar_local(request, local_id):
         logger.error(f"Error al borrar local {local_id}: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
-
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def recuperar_local(request, local_id):
     """Restaurar local comercial borrado lógicamente."""
@@ -851,6 +914,7 @@ def recuperar_local(request, local_id):
 # ===============================================
 # PRODUCTOS
 # ===============================================
+
 
 def _serialize_productos(queryset, is_deleted_view):
     """Serializa productos para DataTables."""
@@ -880,6 +944,8 @@ def _serialize_productos(queryset, is_deleted_view):
         data.append(producto_data)
     return data
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def listar_productos(request):
     """Renderiza la página principal de productos."""
     form = ProductoRegistroForm()
@@ -1035,6 +1101,8 @@ def _serialize_billeteras(queryset, is_deleted_view):
         data.append(billetera_data)
     return data
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def listar_billeteras(request):
     """Renderiza la página principal de billeteras virtuales."""
     form = BilleteraRegistroForm()
