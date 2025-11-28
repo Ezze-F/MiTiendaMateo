@@ -228,9 +228,8 @@ $(document).ready(function() {
         
         const localId = $('#id_loc_com').val();
         const cajaId = $('#id_caja').val();
-        const empleadoId = $('#id_empleado').val();
-        
-        if (!localId || !cajaId || !empleadoId) {
+
+        if (!localId || !cajaId) {
             e.preventDefault();
             alert('Complete todos los campos requeridos');
             return false;

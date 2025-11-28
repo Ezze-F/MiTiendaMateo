@@ -60,19 +60,59 @@ def reducir_stock_de_lotes(id_producto, id_loc_com, cantidad):
 
 def registrar_venta(request):
     """Registra una nueva venta con reducción de stock por lotes"""
+    # Obtener el empleado logueado automáticamente
+    empleado_logueado = None
+    if hasattr(request, 'user') and request.user.is_authenticated:
+        try:
+            # Opción 1: Buscar por relación user_auth (si existe)
+            empleado_logueado = Empleados.objects.get(user_auth=request.user)
+        except Empleados.DoesNotExist:
+            try:
+                # Opción 2: Buscar por usuario_emp (campo de texto)
+                empleado_logueado = Empleados.objects.get(
+                    usuario_emp=request.user.username,
+                    borrado_emp=False
+                )
+            except Empleados.DoesNotExist:
+                try:
+                    # Opción 3: Buscar por email
+                    empleado_logueado = Empleados.objects.get(
+                        email_emp=request.user.email,
+                        borrado_emp=False
+                    )
+                except Empleados.DoesNotExist:
+                    try:
+                        # Opción 4: Buscar por coincidencia de nombre
+                        empleado_logueado = Empleados.objects.filter(
+                            borrado_emp=False,
+                            nombre_emp__icontains=request.user.first_name
+                        ).first()
+                        if not empleado_logueado:
+                            # Última opción: buscar cualquier empleado activo
+                            empleado_logueado = Empleados.objects.filter(
+                                borrado_emp=False
+                            ).first()
+                    except:
+                        pass
+    
     if request.method == 'POST':
         try:
             with transaction.atomic():
                 id_loc_com = request.POST.get('id_loc_com')
                 id_caja = request.POST.get('id_caja')
-                id_empleado = request.POST.get('id_empleado')
-                tipo_venta = request.POST.get('tipo_venta', 'EFECTIVO')
-                id_billetera = request.POST.get('id_billetera')  # Nuevo: billetera seleccionada
                 
                 # Validar campos requeridos
-                if not all([id_loc_com, id_caja, id_empleado]):
+                if not all([id_loc_com, id_caja]):
                     messages.error(request, 'Todos los campos son requeridos')
                     return redirect('a_ventas:registrar_venta')
+                
+                # Si no hay empleado logueado, mostrar error
+                if not empleado_logueado:
+                    messages.error(request, 'No se pudo identificar al empleado. Contacte al administrador.')
+                    return redirect('a_ventas:registrar_venta')
+                
+                tipo_venta = request.POST.get('tipo_venta', 'EFECTIVO')
+                id_billetera = request.POST.get('id_billetera')
                 
                 # Validar billetera para ventas BV
                 if tipo_venta == 'BV' and not id_billetera:
@@ -83,7 +123,7 @@ def registrar_venta(request):
                 venta = Ventas(
                     id_loc_com_id=id_loc_com,
                     id_caja_id=id_caja,
-                    id_empleado_id=id_empleado,
+                    id_empleado=empleado_logueado,  # Usar el objeto empleado directamente
                     fh_venta=timezone.now(),
                     total_venta=0
                 )
@@ -163,7 +203,7 @@ def registrar_venta(request):
                             fh_movimiento=timezone.now()
                         )
                 
-              # ACTUALIZAR SALDO DE BILLETERA VIRTUAL SI ES VENTA BV
+                # ACTUALIZAR SALDO DE BILLETERA VIRTUAL SI ES VENTA BV
                 billetera = None
                 if tipo_venta == 'BV' and id_billetera:
                     try:
@@ -181,33 +221,18 @@ def registrar_venta(request):
                 
         except Exception as e:
             messages.error(request, f'Error al registrar la venta: {str(e)}')
+            return redirect('a_ventas:registrar_venta')
     
-        # GET request - mostrar formulario vacío
-        form = VentaForm()
-        locales = LocalesComerciales.objects.filter(borrado_loc_com=False)
-        empleados = Empleados.objects.filter(borrado_emp=False)
-        billeteras = BilleterasVirtuales.objects.filter(borrado_bv=False)
-        
-        context = {
-            'form': form,
-            'locales': locales,
-            'empleados': empleados,
-            'billeteras': billeteras,
-            'page_title': 'Registrar Nueva Venta'
-        }
-        return render(request, 'a_ventas/registrar_venta.html', context)
-    
-    # GET request - mostrar formulario vacío
+    # GET request - mostrar formulario
     form = VentaForm()
     locales = LocalesComerciales.objects.filter(borrado_loc_com=False)
-    empleados = Empleados.objects.filter(borrado_emp=False)
-    billeteras = BilleterasVirtuales.objects.filter(borrado_bv=False)  # Para el select de billeteras
+    billeteras = BilleterasVirtuales.objects.filter(borrado_bv=False)
     
     context = {
         'form': form,
         'locales': locales,
-        'empleados': empleados,
-        'billeteras': billeteras,  # Nuevo: pasar billeteras al template
+        'empleado_logueado': empleado_logueado,
+        'billeteras': billeteras,
         'page_title': 'Registrar Nueva Venta'
     }
     return render(request, 'a_ventas/registrar_venta.html', context)

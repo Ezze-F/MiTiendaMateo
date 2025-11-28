@@ -221,21 +221,21 @@ class ProveedorRegistroForm(forms.Form):
 
     telefono_prov = forms.CharField(
         max_length=20,
-        required=False,
+        required=True,   # ← CAMBIADO
         label='Teléfono',
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
 
     email_prov = forms.EmailField(
         max_length=150,
-        required=False,
+        required=True,   # ← CAMBIADO
         label='Email',
         widget=forms.EmailInput(attrs={'class': 'form-control'})
     )
 
     direccion_prov = forms.CharField(
         max_length=100,
-        required=False,
+        required=True,   # ← CAMBIADO
         label='Dirección',
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
@@ -244,32 +244,70 @@ class ProveedorRegistroForm(forms.Form):
         queryset=LocalesComerciales.objects.all(),
         required=True,
         label="Locales Comerciales que atiende",
-        # Usamos CheckboxSelectMultiple para mejor UX en selección múltiple
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}) 
-        # O puedes usar forms.SelectMultiple si prefieres un selector grande (requiere CTRL para seleccionar varios)
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'})
     )
     
     productos_vendidos = forms.ModelMultipleChoiceField(
-        # Usamos Productos.objects.all() o Productos.objects.filter(borrado_prod=False) 
-        # para mostrar solo los activos (según el manager 'objects')
-        queryset=Productos.objects.all(), 
-        required=False, # Podría ser opcional que el proveedor tenga productos asociados al registrarlo
+        queryset=Productos.objects.all(),
+        required=True,  # ← CAMBIADO para que sea obligatorio
         label="Productos que vende",
-        # Usamos SelectMultiple, pero podrías usar CheckboxSelectMultiple si la lista es corta
-        widget=forms.SelectMultiple(attrs={'class': 'form-select select2-productos-multi', 'data-placeholder': 'Seleccione los productos'}) 
+        widget=forms.SelectMultiple(
+            attrs={'class': 'form-select select2-productos-multi', 'data-placeholder': 'Seleccione los productos'}
+        )
     )
     
     def clean_cuit_prov(self):
         cuit = self.cleaned_data.get('cuit_prov')
+        cuit_numeros = ''.join(filter(str.isdigit, cuit))  # quita guiones o espacios
+        if len(cuit_numeros) != 11:
+            raise ValidationError("El CUIT debe tener exactamente 11 dígitos.")
         if Proveedores.all_objects.filter(cuit_prov=cuit).exists():
             raise ValidationError("Ya existe un proveedor con este CUIT (activo o inactivo).")
-        return cuit
-
+        return cuit_numeros
+    
     def clean_email_prov(self):
         email = self.cleaned_data.get('email_prov')
         if email and Proveedores.all_objects.filter(email_prov=email).exists():
             raise ValidationError("Ya existe un proveedor con este Email (activo o inactivo).")
         return email
+    
+    def clean_telefono_prov(self):
+        telefono = self.cleaned_data.get('telefono_prov')
+        if not telefono.isdigit():
+            raise ValidationError("El teléfono debe contener solo números.")
+        if not 8 <= len(telefono) <= 15:
+            raise ValidationError("El teléfono debe tener entre 8 y 15 dígitos.")
+        return telefono
+    
+    def clean_nombre_prov(self):
+        nombre = self.cleaned_data.get('nombre_prov')
+        if not nombre.strip():
+            raise ValidationError("El nombre no puede estar vacío.")
+        return nombre
+
+    def clean_direccion_prov(self):
+        direccion = self.cleaned_data.get('direccion_prov')
+        if not direccion.strip():
+            raise ValidationError("La dirección no puede estar vacía.")
+        return direccion
+
+    def clean(self):
+        cleaned_data = super().clean()
+        productos = cleaned_data.get("productos_vendidos")
+        
+        # Precios enviados: vienen como lista en POST
+        precios = self.data.getlist("costo_compra")
+        
+        if productos:
+            # Verifico que cada precio exista y sea > 0
+            for i, precio in enumerate(precios):
+                if not precio or float(precio) <= 0:
+                    raise ValidationError(
+                        f"Debes ingresar un precio de compra válido para el producto {productos[i].nombre}."
+                    )
+
+        return cleaned_data
+
 
 class ProveedorProductoForm(forms.ModelForm):
     class Meta:

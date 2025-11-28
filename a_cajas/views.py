@@ -283,6 +283,7 @@ def datos_arqueo_actual_api(request, caja_id):
     Retorna los datos de transacciones del ciclo de caja actualmente ABIERTO
     para una caja específica, calculando automáticamente ingresos y egresos.
     SEPARADO POR EFECTIVO Y BILLETERA VIRTUAL.
+    INCLUYE PAGOS DE COMPRAS CON BILLETERAS VIRTUALES.
     """
     try:
         # 1. Obtener la caja
@@ -330,11 +331,11 @@ def datos_arqueo_actual_api(request, caja_id):
                     ingresos_bv += venta.total_venta
                     ventas_bv_count += 1
 
-        # 4. Calcular EGRESOS en EFECTIVO (Compras pagadas en efectivo durante el ciclo)
+        # 4. Calcular EGRESOS en EFECTIVO Y BILLETERAS VIRTUALES
         egresos_efectivo = Decimal('0.00')
         egresos_bv = Decimal('0.00')
         
-        # Buscar compras pagadas durante este ciclo
+        # 4.1 Egresos por Movimientos Financieros (Compras pagadas en efectivo durante el ciclo)
         compras_ciclo = Compras.objects.filter(
             fecha_hora_compra__range=(apertura, ahora),
             situacion_compra="Completada"
@@ -358,6 +359,16 @@ def datos_arqueo_actual_api(request, caja_id):
                     elif movimiento.medio_pago == 'BILLETERA_VIRTUAL':
                         egresos_bv += movimiento.monto
                         compras_bv_count += 1
+        
+        # 4.2 Egresos por PagosCompras con Billeteras Virtuales (NUEVO: Incluir pagos de compras con BV)
+        pagos_compras_bv = PagosCompras.objects.filter(
+            fh_pago_compra__range=(apertura, ahora),
+            borrado_pc=False
+        )
+        
+        for pago_compra in pagos_compras_bv:
+            egresos_bv += pago_compra.monto
+            compras_bv_count += 1
 
         # 5. Calcular Saldo Esperado (solo en efectivo)
         monto_inicial = arqueo_activo.monto_inicial_efectivo
@@ -401,6 +412,7 @@ def registrar_cierre_arqueo(request, caja_id):
     """
     Registra el cierre automático de caja calculando ingresos y egresos reales
     SEPARADOS POR EFECTIVO Y BILLETERA VIRTUAL.
+    INCLUYE PAGOS DE COMPRAS CON BILLETERAS VIRTUALES.
     """
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     caja = get_object_or_404(Cajas, pk=caja_id)
@@ -476,6 +488,16 @@ def registrar_cierre_arqueo(request, caja_id):
                     elif movimiento.medio_pago == 'BILLETERA_VIRTUAL':
                         egresos_bv += movimiento.monto
                         compras_bv_count += 1
+        
+        # NUEVO: INCLUIR PAGOS DE COMPRAS CON BILLETERAS VIRTUALES
+        pagos_compras_bv = PagosCompras.objects.filter(
+            fh_pago_compra__range=(apertura, ahora),
+            borrado_pc=False
+        )
+        
+        for pago_compra in pagos_compras_bv:
+            egresos_bv += pago_compra.monto
+            compras_bv_count += 1
 
         # 4. Calcular monto final esperado automáticamente (SOLO EFECTIVO)
         monto_inicial = arqueo_activo.monto_inicial_efectivo
