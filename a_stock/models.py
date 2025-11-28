@@ -48,18 +48,13 @@ class Stock(models.Model):
         verbose_name_plural = 'Stock por Local Comercial'
         unique_together = (('id_producto', 'id_loc_com'),)
 
-from django.db import models
+#--------------------------------
+# Modelo para observaciones de stock   
+#--------------------------------
 
-class ObservacionStock(models.Model):
-    producto = models.CharField(max_length=100)
-    motivo = models.CharField(max_length=200)
-    descripcion = models.TextField(blank=True, null=True)
-    fecha = models.DateField()
-    cantidad = models.PositiveIntegerField()
+# models.py (a_stock)
+from a_central.models import Proveedores, Productos, LocalesComerciales
 
-    def __str__(self):
-        return f"{self.producto} - {self.motivo}"
-    
 
 
 #--------------------------------
@@ -101,4 +96,21 @@ class LoteProducto(models.Model):
         verbose_name_plural = "Lotes de Productos"
 
 
+# ---------------------------
+# OBSERVACIONES DE STOCK
+# ---------------------------
+from django.db import models
+from a_central.models import Productos
+from .models import LoteProducto   # IMPORTA TU MODELO DE LOTES
+
+class ObservacionStock(models.Model):
+    producto_id = models.CharField(max_length=100)   # coincide con BD
+    motivo = models.CharField(max_length=50)
+    descripcion = models.TextField(blank=True, null=True)
+    fecha = models.DateField()
+    cantidad = models.PositiveIntegerField()
+    lote = models.ForeignKey("LoteProducto", on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.producto_id} - {self.motivo}"
 

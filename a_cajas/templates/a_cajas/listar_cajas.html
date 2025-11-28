@@ -317,9 +317,30 @@
                     </div>
 
                     <!-- Input de Efectivo Final (Físico) - Agregado step="0.01" y min="0" -->
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">Resumen Automático del Ciclo:</h6>
+                        <div class="row small">
+                            <div class="col-6">
+                                <strong>EFECTIVO:</strong><br>
+                                <span>Ingresos: <span id="resumen_ingresos">$0.00</span></span><br>
+                                <span>Egresos: <span id="resumen_egresos">$0.00</span></span><br>
+                                <span>Saldo esperado: <span id="resumen_saldo_esperado">$0.00</span></span>
+                            </div>
+                            <div class="col-6">
+                                <strong>BILLETERAS VIRTUALES:</strong><br>
+                                <span>Ingresos: <span id="resumen_ingresos_bv">$0.00</span></span><br>
+                                <span>Egresos: <span id="resumen_egresos_bv">$0.00</span></span><br>
+                                <span>Neto: <span id="resumen_neto_bv">$0.00</span></span>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <strong>Totales:</strong><br>
+                                <span>Ventas: <span id="resumen_ventas">0</span> transacciones</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label for="cerrar_efectivo_final" class="form-label">Efectivo final (Físico, a ingresar)</label>
-                        <input type="number" step="0.01" min="0" class="form-control" id="cerrar_efectivo_final" name="efectivo_final" required>
+                        <input type="number" step="0.01" min="0" class="form-control" id="cerrar_efectivo_final" name="monto_final_efectivo" required>
                         <div class="invalid-feedback" id="error-efectivo_final"></div>
                     </div>
 
@@ -361,11 +382,12 @@ window.AppUrls = {
     // ¡Asegúrate de que estas URLs coincidan con tus patrones de Django!
     abrirCaja: "{% url 'a_cajas:abrir_caja' caja_id=0 %}".replace('/0/', '/'),
     // Nota: Aunque el formulario usa id_arqueo, la URL se construye con caja_id=0 para el placeholder.
-    cerrarCaja: "{% url 'a_cajas:cerrar_caja' caja_id=0 %}".replace('/0/', '/'),
+    cerrarCaja: "{% url 'a_cajas:registrar_cierre_arqueo' caja_id=0 %}".replace('/0/', '/'),
     modificarCaja: "{% url 'a_cajas:modificar_caja' caja_id=0 %}".replace('/0/', '/'),
     borrarCaja: "{% url 'a_cajas:borrar_caja' caja_id=0 %}".replace('/0/', '/'),
     recuperarCaja: "{% url 'a_cajas:recuperar_caja' caja_id=0 %}".replace('/0/', '/'),
-    
+    datosArqueoActual: "{% url 'a_cajas:datos_arqueo_actual_api' caja_id=0 %}".replace('/0/', '/'),
+
     // URLs de API (endpoints de DataTables)
     apiCajasDisponibles: "{% url 'a_cajas:cajas_disponibles_api' %}", 
     apiCajasEliminadas: "{% url 'a_cajas:cajas_eliminadas_api' %}", 
@@ -373,6 +395,7 @@ window.AppUrls = {
 
     // URL para el registro del formulario (manejado por JS)
     registrarCaja: "{% url 'a_cajas:registrar_caja' %}", 
+    
 };
 </script>
 

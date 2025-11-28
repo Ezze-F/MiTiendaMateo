@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Ticket de Venta #{{ venta.id_venta }}</title>
+    <style>
+        @media print {
+            @page {
+                size: 80mm 200mm;
+                margin: 0;
+            }
+            body {
+                width: 80mm;
+                margin: 0;
+                padding: 4mm;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 10px;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .logo {
+            max-width: 60px;
+            height: auto;
+            float: right;
+        }
+        
+        .empresa {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .local {
+            font-size: 12px;
+        }
+        
+        .detalle-venta {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        
+        .detalle-venta td {
+            padding: 2px 0;
+            border-bottom: 1px dotted #ccc;
+        }
+        
+        .total {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 2px solid #000;
+            padding-top: 5px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 10px;
+            border-top: 1px dashed #000;
+            padding-top: 10px;
+        }
+        
+        .tipo-venta {
+            background-color: #f0f0f0;
+            padding: 5px;
+            text-align: center;
+            margin: 5px 0;
+            border-radius: 3px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <!-- Agrega tu logo aquí - Opción 1: Logo como texto -->
+        <div style="text-align: center; margin-bottom: 10px;">
+            <div style="font-size: 18px; font-weight: bold;">TIENDA MATEO</div>
+        </div>
+        
+        <!-- Opción 2: Si quieres usar imagen, descomenta y ajusta la ruta -->
+
+        <div style="text-align: center;">
+            <img src="/static/a_ventas/img/tienda mateo gris.png" style="max-width: 50px; height: auto;" alt="Logo">
+        </div>
+
+        <div class="local">{{ venta.id_loc_com.nombre_loc_com }}</div>
+        <div>{{ venta.id_loc_com.direccion_loc_com|default:"-" }}</div>
+        <div>Tel: {{ venta.id_loc_com.telefono_loc_com|default:"-" }}</div>
+    </div>
+    
+    <div class="tipo-venta">
+        {% if tipo_venta == 'BV' %}
+            💳 VENTA BILLETERA VIRTUAL
+        {% else %}
+            💵 VENTA EFECTIVO
+        {% endif %}
+    </div>
+    
+    <div>
+        <strong>Ticket:</strong> #{{ venta.id_venta }}<br>
+        <strong>Fecha:</strong> {{ venta.fh_venta|date:"d/m/Y H:i:s" }}<br>
+        <strong>Vendedor:</strong> {{ venta.id_empleado.nombre_emp }} {{ venta.id_empleado.apellido_emp }}<br>
+        <strong>Caja:</strong> {{ venta.id_caja.numero_caja|default:"N/A" }}
+    </div>
+    
+    <table class="detalle-venta">
+        <tr>
+            <td colspan="3" style="border-bottom: 1px solid #000; padding: 5px 0;">
+                <strong>DESCRIPCIÓN</strong>
+            </td>
+        </tr>
+        {% for detalle in detalles %}
+        <tr>
+            <td>{{ detalle.id_producto.nombre_producto|truncatechars:20 }}</td>
+            <td style="text-align: center;">{{ detalle.cantidad }} x ${{ detalle.precio_unitario_venta }}</td>
+            <td style="text-align: right;">${{ detalle.subtotal }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <div style="text-align: right; margin-top: 10px;">
+        <div class="total">TOTAL: ${{ venta.total_venta }}</div>
+    </div>
+    
+    <div class="footer">
+        <div>¡Gracias por su compra!</div>
+        <div>Vuelva pronto</div>
+        <div>---</div>
+        <div>Conserve este ticket</div>
+    </div>
+    
+    <div class="no-print" style="text-align: center; margin-top: 20px;">
+        <button onclick="window.print()" class="btn btn-primary">🖨️ Imprimir Ticket</button>
+        <button onclick="window.close()" class="btn btn-secondary">❌ Cerrar</button>
+    </div>
+
+    <script>
+        // Auto-imprimir al cargar la página (opcional)
+        window.onload = function() {
+            // Descomenta la siguiente línea si quieres que se imprima automáticamente
+            // window.print();
+        };
+    </script>
+</body>
+</html>

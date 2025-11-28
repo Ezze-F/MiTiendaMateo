@@ -9,11 +9,27 @@
         <div class="col-12">
             <h2>{{ page_title }}</h2>
             
+            <!-- Mostrar información del empleado logueado -->
+            {% if empleado_logueado %}
+            <div class="alert alert-info mb-3">
+                <i class="fas fa-user"></i> 
+                <strong>Empleado responsable:</strong> 
+                {{ empleado_logueado.nombre_emp }} {{ empleado_logueado.apellido_emp }}
+                <input type="hidden" name="id_empleado" value="{{ empleado_logueado.id_empleado }}">
+            </div>
+            {% else %}
+            <div class="alert alert-warning mb-3">
+                <i class="fas fa-exclamation-triangle"></i> 
+                No se pudo identificar al empleado. Contacte al administrador.
+            </div>
+            {% endif %}
+            
             <form id="form-venta" method="post">
                 {% csrf_token %}
+                <input type="hidden" name="tipo_venta" id="tipo_venta" value="EFECTIVO">
                 
                 <div class="row mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label">Local Comercial *</label>
                         <select name="id_loc_com" class="form-control" id="id_loc_com" required>
                             <option value="">Seleccionar local...</option>
@@ -23,23 +39,35 @@
                         </select>
                     </div>
                     
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label">Caja *</label>
                         <select name="id_caja" class="form-control" id="id_caja" required>
                             <option value="">Seleccionar caja...</option>
                         </select>
                     </div>
-                    
-                    <div class="col-md-4">
-                        <label class="form-label">Empleado *</label>
-                        <select name="id_empleado" class="form-control" id="id_empleado" required>
-                            <option value="">Seleccionar empleado...</option>
-                            {% for empleado in empleados %}
-                                <option value="{{ empleado.id_empleado }}">
-                                    {{ empleado.nombre_emp }} {{ empleado.apellido_emp }}
+                </div>
+
+                <!-- Selector de Billetera Virtual (solo visible para BV) -->
+                <div class="row mb-3" id="billetera-section" style="display: none;">
+                    <div class="col-md-6">
+                        <label class="form-label">Billetera Virtual *</label>
+                        <select name="id_billetera" class="form-control" id="id_billetera">
+                            <option value="">Seleccionar billetera...</option>
+                            {% for billetera in billeteras %}
+                                <option value="{{ billetera.id_bv }}" data-saldo="{{ billetera.saldo_bv }}">
+                                    {{ billetera.nombre_bv }} - Saldo: ${{ billetera.saldo_bv }}
                                 </option>
                             {% endfor %}
                         </select>
+                        <small class="form-text text-muted">Seleccione la billetera donde se acreditará el pago</small>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button type="button" class="btn btn-success" id="btn-confirmar-bv" style="display: none;">
+                            <i class="fas fa-check"></i> Confirmar Venta BV
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="btn-cancelar-bv" style="display: none; margin-left: 10px;">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
                     </div>
                 </div>
 
@@ -99,12 +127,19 @@
 
                 <div class="row">
                     <div class="col-12">
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save"></i> Registrar Venta
-                        </button>
-                        <a href="{% url 'a_ventas:listar_ventas' %}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Cancelar
-                        </a>
+                        <div class="d-flex gap-2" id="botones-principales">
+                            {% if empleado_logueado %}
+                            <button type="submit" class="btn btn-success" id="btn-venta-efectivo">
+                                <i class="fas fa-money-bill-wave"></i> Registrar Venta Efectivo
+                            </button>
+                            <button type="button" class="btn btn-primary" id="btn-venta-bv">
+                                <i class="fas fa-wallet"></i> Registrar Venta BV
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'a_ventas:listar_ventas' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -115,4 +150,139 @@
 
 {% block scripts %}
 <script src="{% static 'a_ventas/js/ventas.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        let modoBV = false;
+        
+        // Manejar clic en botón de venta BV
+        $('#btn-venta-bv').click(function() {
+            modoBV = true;
+            $('#tipo_venta').val('BV');
+            
+            // Mostrar selector de billetera
+            $('#billetera-section').show();
+            $('#id_billetera').prop('required', true);
+            
+            // Ocultar botones principales
+            $('#botones-principales').hide();
+            
+            // Validar que haya billeteras disponibles
+            if ($('#id_billetera option').length <= 1) {
+                alert('No hay billeteras virtuales disponibles. Configure billeteras primero.');
+                resetModoBV();
+                return false;
+            }
+            
+            // Enfocar el selector de billetera
+            $('#id_billetera').focus();
+        });
+        
+        // Manejar cambio en selector de billetera
+        $('#id_billetera').change(function() {
+            const billeteraSeleccionada = $(this).val();
+            if (billeteraSeleccionada) {
+                // Mostrar botón de confirmar
+                $('#btn-confirmar-bv').show();
+                $('#btn-cancelar-bv').show();
+            } else {
+                // Ocultar botones si no hay billetera seleccionada
+                $('#btn-confirmar-bv').hide();
+                $('#btn-cancelar-bv').hide();
+            }
+        });
+        
+        // Manejar clic en confirmar venta BV
+        $('#btn-confirmar-bv').click(function() {
+            if (validarFormularioBV()) {
+                $('#form-venta').submit();
+            }
+        });
+        
+        // Manejar clic en cancelar modo BV
+        $('#btn-cancelar-bv').click(function() {
+            resetModoBV();
+        });
+        
+        // Manejar clic en botón de venta efectivo (comportamiento normal)
+        $('#btn-venta-efectivo').click(function(e) {
+            $('#tipo_venta').val('EFECTIVO');
+            // Ocultar y des-requerir billetera
+            $('#billetera-section').hide();
+            $('#id_billetera').prop('required', false);
+        });
+
+        // Función para validar formulario en modo BV
+        function validarFormularioBV() {
+            const billetera = $('#id_billetera').val();
+            const detalles = $('#tbody-detalles tr').length;
+            
+            if (!billetera) {
+                alert('Debe seleccionar una billetera virtual para ventas BV');
+                $('#id_billetera').focus();
+                return false;
+            }
+            
+            if (detalles === 0) {
+                alert('Debe agregar al menos un producto a la venta');
+                return false;
+            }
+            
+            // Validar campos requeridos básicos (ahora sin empleado)
+            const local = $('#id_loc_com').val();
+            const caja = $('#id_caja').val();
+            
+            if (!local || !caja) {
+                alert('Complete todos los campos requeridos (Local, Caja)');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Función para resetear modo BV
+        function resetModoBV() {
+            modoBV = false;
+            $('#tipo_venta').val('EFECTIVO');
+            $('#billetera-section').hide();
+            $('#id_billetera').val('').prop('required', false);
+            $('#btn-confirmar-bv').hide();
+            $('#btn-cancelar-bv').hide();
+            $('#botones-principales').show();
+        }
+
+        // Validar formulario antes de enviar (para ambos modos)
+        $('#form-venta').submit(function(e) {
+            const tipoVenta = $('#tipo_venta').val();
+            const billetera = $('#id_billetera').val();
+            const detalles = $('#tbody-detalles tr').length;
+            
+            // Validar que haya productos
+            if (detalles === 0) {
+                e.preventDefault();
+                alert('Debe agregar al menos un producto a la venta');
+                return false;
+            }
+            
+            // Validar billetera para ventas BV
+            if (tipoVenta === 'BV' && !billetera) {
+                e.preventDefault();
+                alert('Debe seleccionar una billetera virtual para ventas BV');
+                $('#id_billetera').focus();
+                return false;
+            }
+            
+            // Validar campos requeridos básicos (ahora sin empleado)
+            const local = $('#id_loc_com').val();
+            const caja = $('#id_caja').val();
+            
+            if (!local || !caja) {
+                e.preventDefault();
+                alert('Complete todos los campos requeridos (Local, Caja)');
+                return false;
+            }
+            
+            return true;
+        });
+    });
+</script>
 {% endblock %}

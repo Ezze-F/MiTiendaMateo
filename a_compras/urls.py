@@ -17,5 +17,6 @@ urlpatterns = [
     path('ajax/proveedores-local/<int:local_id>/', views.ajax_proveedores_por_local, name='ajax_proveedores_por_local'),
     path("registrar-pago/<int:compra_id>/", views.registrar_pago, name="registrar_pago"),
     path("ajax/billeteras/", views.ajax_billeteras, name="ajax_billeteras"),
-
+    path('orden-pdf/<int:compra_id>/', views.generar_orden_pdf, name='generar_orden_pdf'),
+    path('pedidos_provisorios/', views.listar_pedidos_provisorios, name='listar_pedidos_provisorios'),
 ]

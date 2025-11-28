@@ -20,6 +20,10 @@
         </div>
     </div>
 
+    <a href="{% url 'a_central:repProvDispo' %}" class="btn btn-secondary">Reporte Disponibles</a>
+    <a href="{% url 'a_central:repProvElim' %}" class="btn btn-secondary">Reporte Eliminados</a>
+    <a href="{% url 'a_central:repProvTodos' %}" class="btn btn-secondary">Reporte Todos</a>
+
     <ul class="nav nav-tabs" id="proveedoresTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="disponibles-tab" data-bs-toggle="tab" data-bs-target="#proveedoresDisponiblesTab" type="button" role="tab" aria-controls="proveedoresDisponiblesTab" aria-selected="true">Proveedores disponibles</button>

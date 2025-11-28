@@ -19,10 +19,15 @@ from a_cajas.models import PagosCompras, MovimientosFinancieros
 from .models import PedidosProveedor, DetallePedidosProveedor
 from django.contrib import messages
 
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import permission_required
+
 # ===============================
 # BLOQUE: COMPRAS
 # ===============================
 
+@login_required
+@permission_required('a_central.view_empleados', raise_exception=True)
 def listar_compras(request):
     """
     Vista principal de Compras:
@@ -295,9 +300,208 @@ def ajax_billeteras(request):
 
 
 
+# En tu views.py (a_compras/views.py)
+from django.http import HttpResponse
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.units import inch, cm
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from io import BytesIO
+from django.shortcuts import get_object_or_404
+# En la sección de IMPORTS de tu views.py, agrega:
+from django.conf import settings
+import os
 
+def generar_orden_pdf(request, compra_id):
+    """
+    Vista para generar orden de compra en PDF - SIN LOGO
+    """
+    compra = get_object_or_404(Compras, pk=compra_id)
+    
+    # Obtener los detalles de la compra
+    detalles = DetallesCompras.objects.filter(id_compra=compra).select_related('id_producto', 'id_producto__id_marca')
+    
+    # Crear el buffer para el PDF
+    buffer = BytesIO()
+    
+    # Configurar el documento
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,  # Menos margen superior sin logo
+        bottomMargin=18
+    )
+    
+    # Contenido del PDF
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # ===============================
+    # ENCABEZADO SIN LOGO
+    # ===============================
+    
+    # Título principal de la empresa
+    empresa_title_style = ParagraphStyle(
+        'EmpresaTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        alignment=1,
+        textColor=colors.black,
+        fontName='Helvetica-Bold',
+        spaceAfter=6
+    )
+    elements.append(Paragraph("MI TIENDA MATEO", empresa_title_style))
 
+    # Información de contacto
+    empresa_info_style = ParagraphStyle(
+        'EmpresaInfo',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=1,
+        textColor=colors.black,
+        fontName='Helvetica',
+        spaceAfter=3
+    )
 
+    elements.append(Paragraph("Sistema de Gestión Comercial", empresa_info_style))
+    elements.append(Paragraph("Tel: (387) 632-6100 | Email: contacto@mitiendamateo.com", empresa_info_style))
+
+    # Línea separadora - VERSIÓN CORREGIDA (sin guiones)
+    elements.append(Spacer(1, 15))  # Solo espacio, sin línea
+    elements.append(Spacer(1, 20))  # Espacio adicional antes del título
+    # ===============================
+    # TÍTULO DEL DOCUMENTO
+    # ===============================
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        spaceAfter=25,
+        alignment=1,
+        textColor=colors.black,
+        fontName='Helvetica-Bold'
+    )
+    elements.append(Paragraph(f"ORDEN DE COMPRA N° {compra.id_compra}", title_style))
+    
+    # ===============================
+    # INFORMACIÓN DE LA COMPRA
+    # ===============================
+    info_data = [
+        ['Fecha:', compra.fecha_hora_compra.astimezone(timezone.get_current_timezone()).strftime("%d/%m/%Y %H:%M")],
+        ['Local Comercial:', compra.id_loc_com.nombre_loc_com],
+        ['Proveedor:', f"{compra.cuit_proveedor.nombre_prov}"],
+        ['CUIT Proveedor:', compra.cuit_proveedor.cuit_prov],
+        ['Empleado:', compra.legajo_empleado.nombre_emp],
+        ['Monto Total:', f"${compra.monto_total:.2f}"],
+    ]
+    
+    info_table = Table(info_data, colWidths=[4*cm, 12*cm])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+    ]))
+    
+    elements.append(info_table)
+    elements.append(Spacer(1, 30))
+    
+    # ===============================
+    # DETALLE DE PRODUCTOS
+    # ===============================
+    section_title_style = ParagraphStyle(
+        'SectionTitle',
+        parent=styles['Heading2'],
+        fontSize=12,
+        spaceAfter=12,
+        textColor=colors.black,
+        fontName='Helvetica-Bold'
+    )
+    elements.append(Paragraph("DETALLE DE PRODUCTOS", section_title_style))
+    
+    # Encabezados de la tabla
+    product_data = [['Producto', 'Marca', 'Cantidad', 'Precio Unitario', 'Subtotal']]
+    
+    # Datos de productos
+    for detalle in detalles:
+        marca = detalle.id_producto.id_marca.nombre_marca if detalle.id_producto.id_marca else "Sin marca"
+        subtotal = detalle.cantidad * detalle.precio_unitario
+        
+        product_data.append([
+            detalle.id_producto.nombre_producto,
+            marca,
+            str(detalle.cantidad),
+            f"${detalle.precio_unitario:.2f}",
+            f"${subtotal:.2f}"
+        ])
+    
+    # Crear tabla de productos
+    product_table = Table(product_data, colWidths=[6*cm, 4*cm, 2.5*cm, 3*cm, 3*cm])
+    product_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+    ]))
+    
+    elements.append(product_table)
+    elements.append(Spacer(1, 20))
+    
+    # ===============================
+    # TOTAL
+    # ===============================
+    total_style = ParagraphStyle(
+        'TotalStyle',
+        parent=styles['Heading2'],
+        fontSize=12,
+        alignment=2,
+        textColor=colors.black,
+        fontName='Helvetica-Bold'
+    )
+    elements.append(Paragraph(f'TOTAL: ${compra.monto_total:.2f}', total_style))
+    
+    # ===============================
+    # PIE DE PÁGINA
+    # ===============================
+    elements.append(Spacer(1, 40))
+    footer_style = ParagraphStyle(
+        'FooterStyle',
+        parent=styles['Italic'],
+        fontSize=8,
+        alignment=1,
+        textColor=colors.black,
+        fontName='Helvetica'
+    )
+    
+    fecha_generacion = timezone.now().astimezone(timezone.get_current_timezone()).strftime('%d/%m/%Y %H:%M')
+    elements.append(Paragraph(f"Generado el: {fecha_generacion}", footer_style))
+    
+    # Generar PDF
+    doc.build(elements)
+    
+    # Preparar respuesta
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="orden_compra_{compra.id_compra}.pdf"'
+    
+    return response
 
 
 # =========================================================
@@ -428,7 +632,6 @@ def confirmar_pedido_provisorio(request, pk):
     pedido.save()
     detalles_pedido.update(borrado_det_ped_prov=True, fh_borrado_det_ped_prov=timezone.now())
 
-    messages.success(request, f"Pedido {pedido.id_pedido_prov} confirmado: Compra #{compra.id_compra} creada correctamente.")
     return redirect('a_compras:listar_compras')
 
 
@@ -509,7 +712,5 @@ def generar_pedidos_automaticos(request):
     pedidos_creados = len(pedidos_dict)
     if pedidos_creados == 0:
         messages.info(request, "No se generaron pedidos automáticos.")
-    else:
-        messages.success(request, f"Se generaron {pedidos_creados} pedidos provisorios automáticamente.")
 
     return redirect('a_compras:listar_pedidos_provisorios')

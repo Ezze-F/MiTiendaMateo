@@ -81,6 +81,10 @@
                                             <a href="{% url 'a_compras:detalle_compra' compra.id_compra %}" class="btn btn-info btn-sm mb-1">
                                                 <i class="fas fa-eye"></i> Ver detalle
                                             </a>
+                                            <a href="{% url 'a_compras:generar_orden_pdf' compra.id_compra %}" 
+                                                class="btn btn-secondary btn-sm mb-1" target="_blank">
+                                                    <i class="fas fa-file-pdf"></i> PDF
+                                            </a>
                                             <button class="btn btn-danger btn-sm mb-1 btn-eliminar-compra"
                                                     data-id="{{ compra.id_compra }}">
                                                 <i class="fas fa-trash"></i> Eliminar
