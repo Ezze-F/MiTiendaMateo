@@ -84,9 +84,9 @@ WSGI_APPLICATION = 'p_tienda.wsgi.application'
 DATABASES = { # Configuración de la BD
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'kioscomateo',
+        'NAME': 'kiosco_mateo',
         'USER': 'root',
-        'PASSWORD': '191265',
+        'PASSWORD': 'root',
         'HOST': 'localhost',
         'PORT': '3306',
     }

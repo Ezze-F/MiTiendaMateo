@@ -30,10 +30,10 @@
                     {% for valor in fila %}
                         <td>
                             {% comment %}
-                                El campo de fecha (fh_borrado_prov) es el cuatro (forloop.counter == 5)
-                                [CUIT(1), Nombre(2), Teléfono(3), Alta(4)]
+                                El campo de fecha (fecha_alta_emp) es el sexto (forloop.counter == 5)
+                                [DNI(1), Apellido(2), Nombre(3), Teléfono(4), Alta(5)]
                             {% endcomment %}
-                            {% if forloop.counter == 4 %}
+                            {% if forloop.counter == 5 %}
                                 {{ valor|date:"d/m/Y" }}
                             {% else %}
                                 {{ valor }}

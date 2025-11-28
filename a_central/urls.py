@@ -78,7 +78,7 @@ urlpatterns = [
     path("reporte_prod_eliminados/", views.rep_prod_eliminados_pdf, name="repProdElim"),
     path("reporte_prod_todos/", views.rep_prod_todos_pdf, name="repProdTodos"),
     # ==================================
-    # RUTAS DE PRODUCTOS
+    # RUTAS DE BILLETERAS
     # ==================================
     path('billeteras/', views.listar_billeteras, name='listar_billeteras'),
     path('billeteras/disponibles/', views.billeteras_disponibles_api, name='billeteras_disponibles_api'),

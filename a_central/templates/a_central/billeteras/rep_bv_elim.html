@@ -30,8 +30,8 @@
                     {% for valor in fila %}
                         <td>
                             {% comment %}
-                                El campo de fecha (fh_borrado_prov) es el cuatro (forloop.counter == 5)
-                                [CUIT(1), Nombre(2), Teléfono(3), Alta(4)]
+                                El campo de fecha es el cuarto (forloop.counter == 4) en la lista:
+                                [Nombre(1), CBU(2), Saldo(3), Eliminada(4)]
                             {% endcomment %}
                             {% if forloop.counter == 4 %}
                                 {{ valor|date:"d/m/Y" }}
@@ -42,7 +42,7 @@
                     {% endfor %}
                 </tr>
             {% endfor %}
-            </tbody>
+        </tbody>
         </table>
     </div>
 </body>

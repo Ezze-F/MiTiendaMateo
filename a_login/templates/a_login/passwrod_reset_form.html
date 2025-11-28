@@ -1,0 +1,45 @@
+{% load static %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restablecer Contraseña - Paso 1</title>
+    <link rel="stylesheet" href="{% static 'css/login.css' %}"> 
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-form">
+            <div class="logo-container">
+                <img src="{% static 'img/logo.png' %}" alt="Logo" class="brand-logo">
+            </div>
+            <h2>Restablecer Contraseña (Paso 1 de 3)</h2>
+
+            {% if messages %}
+                <ul class="messages-list">
+                    {% for message in messages %}
+                        <li class="message-item {{ message.tags }}">
+                            {{ message }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <form action="{% url 'a_login:password_reset_request' %}" method="post">
+                {% csrf_token %}
+
+                <div class="input-group">
+                    <label for="{{ form.username_or_email.id_for_label }}">{{ form.username_or_email.label }}</label>
+                    {{ form.username_or_email }}
+                    {% if form.username_or_email.errors %}
+                        <p class="error-text">{{ form.username_or_email.errors }}</p>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="login-button">Enviar Código de Seguridad</button>
+            </form>
+            
+            <a href="{% url 'a_login:login' %}" class="forgot-password">Volver al Login</a>
+        </div>
+    </div>
+</body>
+</html>
