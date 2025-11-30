@@ -102,7 +102,7 @@
                     <th>Motivo</th>
                     <th>Cantidad</th>
                     <th>Descripción</th>
-                    <th>Acciones</th>
+                    
                 </tr>
             </thead>
 
@@ -152,20 +152,6 @@
 
                     <!-- Descripción -->
                     <td>{{ obs.descripcion|default:"—" }}</td>
-
-                    <!-- Acciones -->
-                    <td>
-                        <a href="{% url 'a_stock:registrar_observacion' %}?id={{ obs.id }}" 
-                           class="btn btn-warning btn-sm">
-                           <i class="fa-solid fa-edit"></i>
-                        </a>
-
-                        <a href="{% url 'a_stock:eliminar_observacion' obs.id %}" 
-                           class="btn btn-danger btn-sm"
-                           onclick="return confirm('¿Eliminar esta observación?');">
-                           <i class="fa-solid fa-trash"></i>
-                        </a>
-                    </td>
 
                 </tr>
                 {% empty %}

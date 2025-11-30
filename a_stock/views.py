@@ -566,7 +566,9 @@ def reducir_stock_al_eliminar_lote(sender, instance, **kwargs):
 # ================================
 @login_required
 @permission_required('a_central.view_empleados', raise_exception=True)
+#CODIGO PARA IMPLEMENTAR LA CREACION DE LOTES CON EL REGISTRO DE PAGO
 def cargar_compras(request):
+
     compras = Compras.objects.filter(
         situacion_compra="Completada",
         borrado_compra=False
@@ -575,6 +577,7 @@ def cargar_compras(request):
     compras_finales = []
 
     for c in compras:
+
         # ✔ Ya pagada
         pagada = PagosCompras.objects.filter(id_compra=c).exists() or \
                  MovimientosFinancieros.objects.filter(id_compra=c).exists()
@@ -584,6 +587,7 @@ def cargar_compras(request):
 
         # ✔ Ver si ya tiene lotes creados
         detalles = DetallesCompras.objects.filter(id_compra=c)
+
         productos_ids = detalles.values_list("id_producto_id", flat=True)
 
         lotes_existentes = LoteProducto.objects.filter(
@@ -601,8 +605,6 @@ def cargar_compras(request):
         "compras": compras_finales
     })
 
-@login_required
-@permission_required('a_central.view_empleados', raise_exception=True)
 @require_POST
 def procesar_compra_en_stock(request, compra_id):
     try:
@@ -615,19 +617,12 @@ def procesar_compra_en_stock(request, compra_id):
                 if not fecha_vto:
                     return JsonResponse({"error": f"Falta fecha de vencimiento para {d.id_producto.nombre_producto}"}, status=400)
 
-                # Generar número de lote automáticamente
-                ultimo = LoteProducto.objects.all().order_by('-id_lote').first()
-                numero_lote = f"LOT-{ultimo.id_lote + 1 if ultimo else 1:04d}"
-
                 LoteProducto.objects.create(
                     id_producto=d.id_producto,
                     id_loc_com=compra.id_loc_com,
-                    numero_lote=numero_lote,
                     cantidad=d.cantidad,
-                    fecha_ingreso=timezone.now(),
-                    fecha_vencimiento=fecha_vto,
-                    activo=True,
-                    borrado_logico=False
+                    fecha_ingreso=timezone.now(),   # DateTime completo
+                    fecha_vencimiento=fecha_vto
                 )
 
         return JsonResponse({"success": "Compra cargada en stock correctamente."})
